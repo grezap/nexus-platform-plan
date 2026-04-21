@@ -139,7 +139,7 @@ Layered on top of the Volume docs to reach enterprise caliber. Each enhancement 
 
 | ID | Duration | Outputs | Exit gate |
 |---|---|---|---|
-| 0.A | 1 day | VMnet20 (HO 192.168.10.0/24) + VMnet21 (NAT 192.168.70.0/24) on host 10.0.70.101 | Ping between two throwaway VMs on both nets |
+| 0.A | 1 day | VMnet10 (HO 192.168.10.0/24) + VMnet11 (NAT 192.168.70.0/24) on host 10.0.70.101 | Ping between two throwaway VMs on both nets |
 | 0.B | 1 wk | Packer templates in `nexus-infra-vmware`: deb13, ubuntu24, ws2025-core, ws2025-desktop, win11ent | 5 golden `.vmx` in `H:\VMS\NexusPlatform\_templates\` |
 | 0.C | 2 wk | Terraform modules in `nexus-infra-vmware` + `nexus-infra-swarm-nomad`: `vmware-desktop` provider, module per cluster, env targets (`full`, `data-engineering`, `ml`, `saas`, `microservices`, `demo-minimal`) | `terraform apply -target=module.foundation` boots dc-nexus + 3× vault + 3× obs |
 | 0.D | 1 wk | 3-node Vault Raft, AppRole, KV-v2 `nexus/*` paths, Consul | `vault kv get nexus/sqlserver/oltpdb` returns |
@@ -185,12 +185,12 @@ Sequenced by dependency. Each phase ends when the **acceptance gate** (§6) pass
 
 | VMnet | Mode | CIDR | DHCP | Role |
 |---|---|---|---|---|
-| **VMnet20** | Host-Only | **192.168.10.0/24** | Off | Cluster backplane — SQL replication, Kafka controller quorum, Vault cluster, etcd peer, Galera SST, CH Keeper raft, Redis cluster bus, Patroni REST, Mongo replication |
-| **VMnet21** | NAT | **192.168.70.0/24** | On, scope .200–.250 (Packer builds only) | Mgmt + application traffic — all static IPs .10–.199 |
+| **VMnet10** | Host-Only | **192.168.10.0/24** | Off | Cluster backplane — SQL replication, Kafka controller quorum, Vault cluster, etcd peer, Galera SST, CH Keeper raft, Redis cluster bus, Patroni REST, Mongo replication |
+| **VMnet11** | NAT | **192.168.70.0/24** | On, scope .200–.250 (Packer builds only) | Mgmt + application traffic — all static IPs .10–.199 |
 
 Both VMnets are **newly created** on host 10.0.70.101 — the host's existing VMnet1/VMnet8 are not used by NexusPlatform to avoid IP collisions with other tenants on the host.
 
-Every NexusPlatform VM is dual-NIC (VMnet20 + VMnet21). Apps connect via VMnet21 IPs. Cluster-internal protocols bind to VMnet20.
+Every NexusPlatform VM is dual-NIC (VMnet10 + VMnet11). Apps connect via VMnet11 IPs. Cluster-internal protocols bind to VMnet10.
 
 Full IP plan in [`docs/infra/network.md`](./docs/infra/network.md).
 
@@ -313,7 +313,7 @@ See [`docs/demos/README.md`](./docs/demos/README.md) for the full specification.
 
 1. ✅ Meta-repo `nexus-platform-plan` created and v0.1.0 (Plan) committed.
 2. ⏭ Amend `portfolio-index` with 5 new infra rows + `lakehouse-core` Vol 14 row + link to this repo.
-3. ⏭ Phase 0.A: create VMnet20 + VMnet21 on host 10.0.70.101.
+3. ⏭ Phase 0.A: create VMnet10 + VMnet11 on host 10.0.70.101.
 4. ⏭ Phase 0.B: begin `nexus-infra-vmware` repo with Packer templates.
 
 ---
@@ -324,8 +324,8 @@ See [`docs/demos/README.md`](./docs/demos/README.md) for the full specification.
 |---|---|
 | Host | Windows 11 Pro, 10.0.70.101, 256 GB RAM |
 | Hypervisor | VMware Workstation Pro 25H2 (Type-2) |
-| VMnet20 | Host-Only, 192.168.10.0/24 |
-| VMnet21 | NAT, 192.168.70.0/24 |
+| VMnet10 | Host-Only, 192.168.10.0/24 |
+| VMnet11 | NAT, 192.168.70.0/24 |
 | Active VMs path | `H:\VMS\NexusPlatform\` (NVMe stripe) |
 | Cold storage path | `D:\VMS\NexusPlatform\` |
 | Linux base | Debian 13 (Trixie) + Ubuntu 24.04 LTS (per doc) |

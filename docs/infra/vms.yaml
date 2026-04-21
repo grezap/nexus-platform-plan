@@ -10,12 +10,12 @@ metadata:
   plan_version: v0.1.0
 
 networks:
-  vmnet20:
+  vmnet10:
     mode: host-only
     cidr: 192.168.10.0/24
     dhcp: false
     role: cluster-backplane
-  vmnet21:
+  vmnet11:
     mode: nat
     cidr: 192.168.70.0/24
     dhcp: { enabled: true, scope: "192.168.70.200-192.168.70.250", purpose: "Packer builds only" }
@@ -26,7 +26,7 @@ storage:
   cold: D:\VMS\NexusPlatform
   templates: H:\VMS\NexusPlatform\_templates
 
-# IP convention (VMnet20 third octet = cluster role):
+# IP convention (VMnet10 third octet = cluster role):
 #   10.10.x — SQL Server        10.20.x — Kafka
 #   10.30.x — StarRocks         10.40.x — ClickHouse
 #   10.50.x — Percona           10.60.x — PostgreSQL
@@ -40,22 +40,22 @@ clusters:
     purpose: AD, DNS, HashiCorp Vault, observability stack
     phase: 0.A-0.D / 0.I
     nodes:
-      - { name: dc-nexus,     os: ws2025-desktop, vcpu: 2, ram_gb: 4,  disk_gb: 60,  vmnet20: 192.168.10.10, vmnet21: 192.168.70.10, dir: H:\VMS\NexusPlatform\01-foundation\dc-nexus,     role: "AD DC + DNS" }
-      - { name: vault-1,      os: deb13,          vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet20: 192.168.10.121, vmnet21: 192.168.70.121, dir: H:\VMS\NexusPlatform\01-foundation\vault-1,  role: "Vault Raft node 1" }
-      - { name: vault-2,      os: deb13,          vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet20: 192.168.10.122, vmnet21: 192.168.70.122, dir: H:\VMS\NexusPlatform\01-foundation\vault-2,  role: "Vault Raft node 2" }
-      - { name: vault-3,      os: deb13,          vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet20: 192.168.10.123, vmnet21: 192.168.70.123, dir: H:\VMS\NexusPlatform\01-foundation\vault-3,  role: "Vault Raft node 3" }
-      - { name: obs-metrics,  os: deb13,          vcpu: 4, ram_gb: 12, disk_gb: 120, vmnet20: 192.168.10.90,  vmnet21: 192.168.70.90,  dir: H:\VMS\NexusPlatform\01-foundation\obs-metrics,  role: "Prometheus + VictoriaMetrics + Grafana + Alertmanager + Karma + Marquez" }
-      - { name: obs-tracing,  os: deb13,          vcpu: 2, ram_gb: 8,  disk_gb: 80,  vmnet20: 192.168.10.93,  vmnet21: 192.168.70.93,  dir: H:\VMS\NexusPlatform\01-foundation\obs-tracing,  role: "Jaeger + OTel Collector" }
-      - { name: obs-logging,  os: deb13,          vcpu: 2, ram_gb: 8,  disk_gb: 120, vmnet20: 192.168.10.94,  vmnet21: 192.168.70.94,  dir: H:\VMS\NexusPlatform\01-foundation\obs-logging,  role: "Seq + Vector" }
+      - { name: dc-nexus,     os: ws2025-desktop, vcpu: 2, ram_gb: 4,  disk_gb: 60,  vmnet10: 192.168.10.10, vmnet11: 192.168.70.10, dir: H:\VMS\NexusPlatform\01-foundation\dc-nexus,     role: "AD DC + DNS" }
+      - { name: vault-1,      os: deb13,          vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet10: 192.168.10.121, vmnet11: 192.168.70.121, dir: H:\VMS\NexusPlatform\01-foundation\vault-1,  role: "Vault Raft node 1" }
+      - { name: vault-2,      os: deb13,          vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet10: 192.168.10.122, vmnet11: 192.168.70.122, dir: H:\VMS\NexusPlatform\01-foundation\vault-2,  role: "Vault Raft node 2" }
+      - { name: vault-3,      os: deb13,          vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet10: 192.168.10.123, vmnet11: 192.168.70.123, dir: H:\VMS\NexusPlatform\01-foundation\vault-3,  role: "Vault Raft node 3" }
+      - { name: obs-metrics,  os: deb13,          vcpu: 4, ram_gb: 12, disk_gb: 120, vmnet10: 192.168.10.90,  vmnet11: 192.168.70.90,  dir: H:\VMS\NexusPlatform\01-foundation\obs-metrics,  role: "Prometheus + VictoriaMetrics + Grafana + Alertmanager + Karma + Marquez" }
+      - { name: obs-tracing,  os: deb13,          vcpu: 2, ram_gb: 8,  disk_gb: 80,  vmnet10: 192.168.10.93,  vmnet11: 192.168.70.93,  dir: H:\VMS\NexusPlatform\01-foundation\obs-tracing,  role: "Jaeger + OTel Collector" }
+      - { name: obs-logging,  os: deb13,          vcpu: 2, ram_gb: 8,  disk_gb: 120, vmnet10: 192.168.10.94,  vmnet11: 192.168.70.94,  dir: H:\VMS\NexusPlatform\01-foundation\obs-logging,  role: "Seq + Vector" }
 
   sqlserver:
     purpose: SQL Server FCI + AG
     phase: 0.G / 1
     nodes:
-      - { name: sql-fci-1,     os: ws2025-desktop, vcpu: 4, ram_gb: 16, disk_gb: 200, vmnet20: 192.168.10.11, vmnet21: 192.168.70.11, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-fci-1,     role: "FCI node 1 (WSFC)" }
-      - { name: sql-fci-2,     os: ws2025-desktop, vcpu: 4, ram_gb: 16, disk_gb: 200, vmnet20: 192.168.10.12, vmnet21: 192.168.70.12, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-fci-2,     role: "FCI node 2 (WSFC)" }
-      - { name: sql-ag-rep-1,  os: ws2025-desktop, vcpu: 4, ram_gb: 12, disk_gb: 200, vmnet20: 192.168.10.13, vmnet21: 192.168.70.13, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-ag-rep-1,  role: "AG async replica 1" }
-      - { name: sql-ag-rep-2,  os: ws2025-desktop, vcpu: 4, ram_gb: 12, disk_gb: 200, vmnet20: 192.168.10.14, vmnet21: 192.168.70.14, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-ag-rep-2,  role: "AG async replica 2" }
+      - { name: sql-fci-1,     os: ws2025-desktop, vcpu: 4, ram_gb: 16, disk_gb: 200, vmnet10: 192.168.10.11, vmnet11: 192.168.70.11, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-fci-1,     role: "FCI node 1 (WSFC)" }
+      - { name: sql-fci-2,     os: ws2025-desktop, vcpu: 4, ram_gb: 16, disk_gb: 200, vmnet10: 192.168.10.12, vmnet11: 192.168.70.12, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-fci-2,     role: "FCI node 2 (WSFC)" }
+      - { name: sql-ag-rep-1,  os: ws2025-desktop, vcpu: 4, ram_gb: 12, disk_gb: 200, vmnet10: 192.168.10.13, vmnet11: 192.168.70.13, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-ag-rep-1,  role: "AG async replica 1" }
+      - { name: sql-ag-rep-2,  os: ws2025-desktop, vcpu: 4, ram_gb: 12, disk_gb: 200, vmnet10: 192.168.10.14, vmnet11: 192.168.70.14, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-ag-rep-2,  role: "AG async replica 2" }
     virtual_ips:
       wsfc: 192.168.70.15
       fci: 192.168.70.16
@@ -65,66 +65,66 @@ clusters:
     purpose: Primary Kafka cluster (KRaft)
     phase: 0.H
     nodes:
-      - { name: kafka-east-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.21, vmnet21: 192.168.70.21, dir: H:\VMS\NexusPlatform\03-kafka\kafka-east-1, role: "KRaft broker/controller" }
-      - { name: kafka-east-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.22, vmnet21: 192.168.70.22, dir: H:\VMS\NexusPlatform\03-kafka\kafka-east-2, role: "KRaft broker/controller" }
-      - { name: kafka-east-3, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.23, vmnet21: 192.168.70.23, dir: H:\VMS\NexusPlatform\03-kafka\kafka-east-3, role: "KRaft broker/controller" }
+      - { name: kafka-east-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.21, vmnet11: 192.168.70.21, dir: H:\VMS\NexusPlatform\03-kafka\kafka-east-1, role: "KRaft broker/controller" }
+      - { name: kafka-east-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.22, vmnet11: 192.168.70.22, dir: H:\VMS\NexusPlatform\03-kafka\kafka-east-2, role: "KRaft broker/controller" }
+      - { name: kafka-east-3, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.23, vmnet11: 192.168.70.23, dir: H:\VMS\NexusPlatform\03-kafka\kafka-east-3, role: "KRaft broker/controller" }
 
   kafka-west:
     purpose: DR Kafka cluster (KRaft)
     phase: 0.H
     nodes:
-      - { name: kafka-west-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.24, vmnet21: 192.168.70.24, dir: H:\VMS\NexusPlatform\03-kafka\kafka-west-1, role: "KRaft broker/controller" }
-      - { name: kafka-west-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.25, vmnet21: 192.168.70.25, dir: H:\VMS\NexusPlatform\03-kafka\kafka-west-2, role: "KRaft broker/controller" }
-      - { name: kafka-west-3, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.26, vmnet21: 192.168.70.26, dir: H:\VMS\NexusPlatform\03-kafka\kafka-west-3, role: "KRaft broker/controller" }
+      - { name: kafka-west-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.24, vmnet11: 192.168.70.24, dir: H:\VMS\NexusPlatform\03-kafka\kafka-west-1, role: "KRaft broker/controller" }
+      - { name: kafka-west-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.25, vmnet11: 192.168.70.25, dir: H:\VMS\NexusPlatform\03-kafka\kafka-west-2, role: "KRaft broker/controller" }
+      - { name: kafka-west-3, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.26, vmnet11: 192.168.70.26, dir: H:\VMS\NexusPlatform\03-kafka\kafka-west-3, role: "KRaft broker/controller" }
 
   kafka-ecosystem:
     purpose: Schema Registry, Connect, ksqlDB, MM2, REST Proxy
     phase: 0.H
     nodes:
-      - { name: schema-registry-1, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet20: 192.168.10.91, vmnet21: 192.168.70.91, dir: H:\VMS\NexusPlatform\03-kafka\schema-registry-1, role: "Schema Registry primary" }
-      - { name: schema-registry-2, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet20: 192.168.10.92, vmnet21: 192.168.70.92, dir: H:\VMS\NexusPlatform\03-kafka\schema-registry-2, role: "Schema Registry replica" }
-      - { name: kafka-connect-1,  os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 40, vmnet20: 192.168.10.95, vmnet21: 192.168.70.95, dir: H:\VMS\NexusPlatform\03-kafka\kafka-connect-1, role: "Kafka Connect + Debezium" }
-      - { name: kafka-connect-2,  os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 40, vmnet20: 192.168.10.96, vmnet21: 192.168.70.96, dir: H:\VMS\NexusPlatform\03-kafka\kafka-connect-2, role: "Kafka Connect + Debezium" }
-      - { name: ksqldb-1,        os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 60, vmnet20: 192.168.10.97, vmnet21: 192.168.70.97, dir: H:\VMS\NexusPlatform\03-kafka\ksqldb-1, role: "ksqlDB primary" }
-      - { name: ksqldb-2,        os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 60, vmnet20: 192.168.10.98, vmnet21: 192.168.70.99, dir: H:\VMS\NexusPlatform\03-kafka\ksqldb-2, role: "ksqlDB replica" }
-      - { name: mm2-1,           os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet20: 192.168.10.85, vmnet21: 192.168.70.85, dir: H:\VMS\NexusPlatform\03-kafka\mm2-1, role: "MirrorMaker 2 east→west" }
-      - { name: mm2-2,           os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet20: 192.168.10.86, vmnet21: 192.168.70.86, dir: H:\VMS\NexusPlatform\03-kafka\mm2-2, role: "MirrorMaker 2 west→east" }
-      - { name: kafka-rest-1,    os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 30, vmnet20: 192.168.10.88, vmnet21: 192.168.70.88, dir: H:\VMS\NexusPlatform\03-kafka\kafka-rest-1, role: "REST Proxy" }
+      - { name: schema-registry-1, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.91, vmnet11: 192.168.70.91, dir: H:\VMS\NexusPlatform\03-kafka\schema-registry-1, role: "Schema Registry primary" }
+      - { name: schema-registry-2, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.92, vmnet11: 192.168.70.92, dir: H:\VMS\NexusPlatform\03-kafka\schema-registry-2, role: "Schema Registry replica" }
+      - { name: kafka-connect-1,  os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 40, vmnet10: 192.168.10.95, vmnet11: 192.168.70.95, dir: H:\VMS\NexusPlatform\03-kafka\kafka-connect-1, role: "Kafka Connect + Debezium" }
+      - { name: kafka-connect-2,  os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 40, vmnet10: 192.168.10.96, vmnet11: 192.168.70.96, dir: H:\VMS\NexusPlatform\03-kafka\kafka-connect-2, role: "Kafka Connect + Debezium" }
+      - { name: ksqldb-1,        os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 60, vmnet10: 192.168.10.97, vmnet11: 192.168.70.97, dir: H:\VMS\NexusPlatform\03-kafka\ksqldb-1, role: "ksqlDB primary" }
+      - { name: ksqldb-2,        os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 60, vmnet10: 192.168.10.98, vmnet11: 192.168.70.99, dir: H:\VMS\NexusPlatform\03-kafka\ksqldb-2, role: "ksqlDB replica" }
+      - { name: mm2-1,           os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.85, vmnet11: 192.168.70.85, dir: H:\VMS\NexusPlatform\03-kafka\mm2-1, role: "MirrorMaker 2 east→west" }
+      - { name: mm2-2,           os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.86, vmnet11: 192.168.70.86, dir: H:\VMS\NexusPlatform\03-kafka\mm2-2, role: "MirrorMaker 2 west→east" }
+      - { name: kafka-rest-1,    os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 30, vmnet10: 192.168.10.88, vmnet11: 192.168.70.88, dir: H:\VMS\NexusPlatform\03-kafka\kafka-rest-1, role: "REST Proxy" }
 
   starrocks:
     purpose: StarRocks FE + BE cluster
     phase: 0.G
     nodes:
-      - { name: sr-fe-leader,     os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 60,  vmnet20: 192.168.10.31, vmnet21: 192.168.70.31, dir: H:\VMS\NexusPlatform\04-analytics\sr-fe-leader,     role: "FE leader" }
-      - { name: sr-fe-follower-1, os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 60,  vmnet20: 192.168.10.32, vmnet21: 192.168.70.32, dir: H:\VMS\NexusPlatform\04-analytics\sr-fe-follower-1, role: "FE follower" }
-      - { name: sr-fe-follower-2, os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 60,  vmnet20: 192.168.10.33, vmnet21: 192.168.70.33, dir: H:\VMS\NexusPlatform\04-analytics\sr-fe-follower-2, role: "FE follower" }
-      - { name: sr-be-1,          os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet20: 192.168.10.34, vmnet21: 192.168.70.34, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-1,          role: "BE node 1" }
-      - { name: sr-be-2,          os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet20: 192.168.10.35, vmnet21: 192.168.70.35, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-2,          role: "BE node 2" }
-      - { name: sr-be-3,          os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet20: 192.168.10.36, vmnet21: 192.168.70.36, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-3,          role: "BE node 3" }
+      - { name: sr-fe-leader,     os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 60,  vmnet10: 192.168.10.31, vmnet11: 192.168.70.31, dir: H:\VMS\NexusPlatform\04-analytics\sr-fe-leader,     role: "FE leader" }
+      - { name: sr-fe-follower-1, os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 60,  vmnet10: 192.168.10.32, vmnet11: 192.168.70.32, dir: H:\VMS\NexusPlatform\04-analytics\sr-fe-follower-1, role: "FE follower" }
+      - { name: sr-fe-follower-2, os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 60,  vmnet10: 192.168.10.33, vmnet11: 192.168.70.33, dir: H:\VMS\NexusPlatform\04-analytics\sr-fe-follower-2, role: "FE follower" }
+      - { name: sr-be-1,          os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.34, vmnet11: 192.168.70.34, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-1,          role: "BE node 1" }
+      - { name: sr-be-2,          os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.35, vmnet11: 192.168.70.35, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-2,          role: "BE node 2" }
+      - { name: sr-be-3,          os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.36, vmnet11: 192.168.70.36, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-3,          role: "BE node 3" }
 
   clickhouse:
     purpose: ClickHouse 3 shards × 2 replicas with Keeper quorum
     phase: 0.G
     nodes:
-      - { name: ch-keeper-1,    os: deb13, vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet20: 192.168.10.41, vmnet21: 192.168.70.41, dir: H:\VMS\NexusPlatform\04-analytics\ch-keeper-1,    role: "ClickHouse Keeper" }
-      - { name: ch-keeper-2,    os: deb13, vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet20: 192.168.10.42, vmnet21: 192.168.70.42, dir: H:\VMS\NexusPlatform\04-analytics\ch-keeper-2,    role: "ClickHouse Keeper" }
-      - { name: ch-keeper-3,    os: deb13, vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet20: 192.168.10.43, vmnet21: 192.168.70.43, dir: H:\VMS\NexusPlatform\04-analytics\ch-keeper-3,    role: "ClickHouse Keeper" }
-      - { name: ch-shard1-rep1, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet20: 192.168.10.44, vmnet21: 192.168.70.44, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard1-rep1, role: "shard1 replica1" }
-      - { name: ch-shard1-rep2, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet20: 192.168.10.45, vmnet21: 192.168.70.45, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard1-rep2, role: "shard1 replica2" }
-      - { name: ch-shard2-rep1, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet20: 192.168.10.46, vmnet21: 192.168.70.46, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard2-rep1, role: "shard2 replica1" }
-      - { name: ch-shard2-rep2, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet20: 192.168.10.47, vmnet21: 192.168.70.47, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard2-rep2, role: "shard2 replica2" }
-      - { name: ch-shard3-rep1, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet20: 192.168.10.48, vmnet21: 192.168.70.48, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard3-rep1, role: "shard3 replica1" }
-      - { name: ch-shard3-rep2, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet20: 192.168.10.49, vmnet21: 192.168.70.49, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard3-rep2, role: "shard3 replica2" }
+      - { name: ch-keeper-1,    os: deb13, vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet10: 192.168.10.41, vmnet11: 192.168.70.41, dir: H:\VMS\NexusPlatform\04-analytics\ch-keeper-1,    role: "ClickHouse Keeper" }
+      - { name: ch-keeper-2,    os: deb13, vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet10: 192.168.10.42, vmnet11: 192.168.70.42, dir: H:\VMS\NexusPlatform\04-analytics\ch-keeper-2,    role: "ClickHouse Keeper" }
+      - { name: ch-keeper-3,    os: deb13, vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet10: 192.168.10.43, vmnet11: 192.168.70.43, dir: H:\VMS\NexusPlatform\04-analytics\ch-keeper-3,    role: "ClickHouse Keeper" }
+      - { name: ch-shard1-rep1, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.44, vmnet11: 192.168.70.44, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard1-rep1, role: "shard1 replica1" }
+      - { name: ch-shard1-rep2, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.45, vmnet11: 192.168.70.45, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard1-rep2, role: "shard1 replica2" }
+      - { name: ch-shard2-rep1, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.46, vmnet11: 192.168.70.46, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard2-rep1, role: "shard2 replica1" }
+      - { name: ch-shard2-rep2, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.47, vmnet11: 192.168.70.47, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard2-rep2, role: "shard2 replica2" }
+      - { name: ch-shard3-rep1, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.48, vmnet11: 192.168.70.48, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard3-rep1, role: "shard3 replica1" }
+      - { name: ch-shard3-rep2, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.49, vmnet11: 192.168.70.49, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard3-rep2, role: "shard3 replica2" }
 
   percona:
     purpose: Percona XtraDB Cluster with ProxySQL
     phase: 0.G
     nodes:
-      - { name: pxc-node-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.51, vmnet21: 192.168.70.51, dir: H:\VMS\NexusPlatform\05-oltp\pxc-node-1, role: "PXC node (Galera)" }
-      - { name: pxc-node-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.52, vmnet21: 192.168.70.52, dir: H:\VMS\NexusPlatform\05-oltp\pxc-node-2, role: "PXC node (Galera)" }
-      - { name: pxc-node-3, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.53, vmnet21: 192.168.70.53, dir: H:\VMS\NexusPlatform\05-oltp\pxc-node-3, role: "PXC node (Galera)" }
-      - { name: proxysql-1, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet20: 192.168.10.54, vmnet21: 192.168.70.54, dir: H:\VMS\NexusPlatform\05-oltp\proxysql-1, role: "ProxySQL instance 1" }
-      - { name: proxysql-2, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet20: 192.168.10.55, vmnet21: 192.168.70.55, dir: H:\VMS\NexusPlatform\05-oltp\proxysql-2, role: "ProxySQL instance 2" }
+      - { name: pxc-node-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.51, vmnet11: 192.168.70.51, dir: H:\VMS\NexusPlatform\05-oltp\pxc-node-1, role: "PXC node (Galera)" }
+      - { name: pxc-node-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.52, vmnet11: 192.168.70.52, dir: H:\VMS\NexusPlatform\05-oltp\pxc-node-2, role: "PXC node (Galera)" }
+      - { name: pxc-node-3, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.53, vmnet11: 192.168.70.53, dir: H:\VMS\NexusPlatform\05-oltp\pxc-node-3, role: "PXC node (Galera)" }
+      - { name: proxysql-1, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.54, vmnet11: 192.168.70.54, dir: H:\VMS\NexusPlatform\05-oltp\proxysql-1, role: "ProxySQL instance 1" }
+      - { name: proxysql-2, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.55, vmnet11: 192.168.70.55, dir: H:\VMS\NexusPlatform\05-oltp\proxysql-2, role: "ProxySQL instance 2" }
     virtual_ips:
       proxysql_vip: 192.168.70.50
 
@@ -132,66 +132,66 @@ clusters:
     purpose: PostgreSQL Patroni + etcd + HAProxy
     phase: 0.G
     nodes:
-      - { name: pg-primary,   os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.61, vmnet21: 192.168.70.61, dir: H:\VMS\NexusPlatform\05-oltp\pg-primary,   role: "Patroni leader" }
-      - { name: pg-replica-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.62, vmnet21: 192.168.70.62, dir: H:\VMS\NexusPlatform\05-oltp\pg-replica-1, role: "Patroni replica" }
-      - { name: pg-replica-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.63, vmnet21: 192.168.70.63, dir: H:\VMS\NexusPlatform\05-oltp\pg-replica-2, role: "Patroni replica" }
-      - { name: etcd-1,       os: deb13, vcpu: 1, ram_gb: 2, disk_gb: 20,  vmnet20: 192.168.10.64, vmnet21: 192.168.70.64, dir: H:\VMS\NexusPlatform\05-oltp\etcd-1,       role: "etcd member" }
-      - { name: etcd-2,       os: deb13, vcpu: 1, ram_gb: 2, disk_gb: 20,  vmnet20: 192.168.10.65, vmnet21: 192.168.70.65, dir: H:\VMS\NexusPlatform\05-oltp\etcd-2,       role: "etcd member" }
-      - { name: etcd-3,       os: deb13, vcpu: 1, ram_gb: 2, disk_gb: 20,  vmnet20: 192.168.10.66, vmnet21: 192.168.70.66, dir: H:\VMS\NexusPlatform\05-oltp\etcd-3,       role: "etcd member" }
-      - { name: haproxy-pg,   os: deb13, vcpu: 1, ram_gb: 2, disk_gb: 20,  vmnet20: 192.168.10.67, vmnet21: 192.168.70.67, dir: H:\VMS\NexusPlatform\05-oltp\haproxy-pg,   role: "HAProxy Patroni REST + 5432" }
+      - { name: pg-primary,   os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.61, vmnet11: 192.168.70.61, dir: H:\VMS\NexusPlatform\05-oltp\pg-primary,   role: "Patroni leader" }
+      - { name: pg-replica-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.62, vmnet11: 192.168.70.62, dir: H:\VMS\NexusPlatform\05-oltp\pg-replica-1, role: "Patroni replica" }
+      - { name: pg-replica-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.63, vmnet11: 192.168.70.63, dir: H:\VMS\NexusPlatform\05-oltp\pg-replica-2, role: "Patroni replica" }
+      - { name: etcd-1,       os: deb13, vcpu: 1, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.64, vmnet11: 192.168.70.64, dir: H:\VMS\NexusPlatform\05-oltp\etcd-1,       role: "etcd member" }
+      - { name: etcd-2,       os: deb13, vcpu: 1, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.65, vmnet11: 192.168.70.65, dir: H:\VMS\NexusPlatform\05-oltp\etcd-2,       role: "etcd member" }
+      - { name: etcd-3,       os: deb13, vcpu: 1, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.66, vmnet11: 192.168.70.66, dir: H:\VMS\NexusPlatform\05-oltp\etcd-3,       role: "etcd member" }
+      - { name: haproxy-pg,   os: deb13, vcpu: 1, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.67, vmnet11: 192.168.70.67, dir: H:\VMS\NexusPlatform\05-oltp\haproxy-pg,   role: "HAProxy Patroni REST + 5432" }
 
   mongo:
     purpose: MongoDB 3-node replica set
     phase: 0.G
     nodes:
-      - { name: mongo-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.71, vmnet21: 192.168.70.71, dir: H:\VMS\NexusPlatform\05-oltp\mongo-1, role: "Replica set primary candidate" }
-      - { name: mongo-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.72, vmnet21: 192.168.70.72, dir: H:\VMS\NexusPlatform\05-oltp\mongo-2, role: "Replica set secondary" }
-      - { name: mongo-3, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet20: 192.168.10.73, vmnet21: 192.168.70.73, dir: H:\VMS\NexusPlatform\05-oltp\mongo-3, role: "Replica set secondary" }
+      - { name: mongo-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.71, vmnet11: 192.168.70.71, dir: H:\VMS\NexusPlatform\05-oltp\mongo-1, role: "Replica set primary candidate" }
+      - { name: mongo-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.72, vmnet11: 192.168.70.72, dir: H:\VMS\NexusPlatform\05-oltp\mongo-2, role: "Replica set secondary" }
+      - { name: mongo-3, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.73, vmnet11: 192.168.70.73, dir: H:\VMS\NexusPlatform\05-oltp\mongo-3, role: "Replica set secondary" }
 
   redis:
     purpose: Redis Cluster 3 shards × 2 replicas
     phase: 0.G
     nodes:
-      - { name: redis-1, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet20: 192.168.10.81, vmnet21: 192.168.70.81, dir: H:\VMS\NexusPlatform\05-oltp\redis-1, role: "shard1 primary" }
-      - { name: redis-2, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet20: 192.168.10.82, vmnet21: 192.168.70.82, dir: H:\VMS\NexusPlatform\05-oltp\redis-2, role: "shard1 replica" }
-      - { name: redis-3, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet20: 192.168.10.83, vmnet21: 192.168.70.83, dir: H:\VMS\NexusPlatform\05-oltp\redis-3, role: "shard2 primary" }
-      - { name: redis-4, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet20: 192.168.10.84, vmnet21: 192.168.70.84, dir: H:\VMS\NexusPlatform\05-oltp\redis-4, role: "shard2 replica" }
-      - { name: redis-5, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet20: 192.168.10.87, vmnet21: 192.168.70.87, dir: H:\VMS\NexusPlatform\05-oltp\redis-5, role: "shard3 primary" }
-      - { name: redis-6, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet20: 192.168.10.89, vmnet21: 192.168.70.89, dir: H:\VMS\NexusPlatform\05-oltp\redis-6, role: "shard3 replica" }
+      - { name: redis-1, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.81, vmnet11: 192.168.70.81, dir: H:\VMS\NexusPlatform\05-oltp\redis-1, role: "shard1 primary" }
+      - { name: redis-2, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.82, vmnet11: 192.168.70.82, dir: H:\VMS\NexusPlatform\05-oltp\redis-2, role: "shard1 replica" }
+      - { name: redis-3, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.83, vmnet11: 192.168.70.83, dir: H:\VMS\NexusPlatform\05-oltp\redis-3, role: "shard2 primary" }
+      - { name: redis-4, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.84, vmnet11: 192.168.70.84, dir: H:\VMS\NexusPlatform\05-oltp\redis-4, role: "shard2 replica" }
+      - { name: redis-5, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.87, vmnet11: 192.168.70.87, dir: H:\VMS\NexusPlatform\05-oltp\redis-5, role: "shard3 primary" }
+      - { name: redis-6, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.89, vmnet11: 192.168.70.89, dir: H:\VMS\NexusPlatform\05-oltp\redis-6, role: "shard3 replica" }
 
   swarm:
     purpose: Docker Swarm + Nomad + Consul
     phase: 0.E
     nodes:
-      - { name: swarm-manager-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet20: 192.168.10.111, vmnet21: 192.168.70.111, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-manager-1, role: "Swarm manager + Nomad server + Consul server" }
-      - { name: swarm-manager-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet20: 192.168.10.112, vmnet21: 192.168.70.112, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-manager-2, role: "Swarm manager + Nomad server + Consul server" }
-      - { name: swarm-manager-3, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet20: 192.168.10.113, vmnet21: 192.168.70.113, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-manager-3, role: "Swarm manager + Nomad server + Consul server" }
-      - { name: swarm-worker-1,  os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet20: 192.168.10.131, vmnet21: 192.168.70.131, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-worker-1,  role: "Swarm worker + Nomad client" }
-      - { name: swarm-worker-2,  os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet20: 192.168.10.132, vmnet21: 192.168.70.132, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-worker-2,  role: "Swarm worker + Nomad client" }
-      - { name: swarm-worker-3,  os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet20: 192.168.10.133, vmnet21: 192.168.70.133, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-worker-3,  role: "Swarm worker + Nomad client" }
+      - { name: swarm-manager-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet10: 192.168.10.111, vmnet11: 192.168.70.111, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-manager-1, role: "Swarm manager + Nomad server + Consul server" }
+      - { name: swarm-manager-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet10: 192.168.10.112, vmnet11: 192.168.70.112, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-manager-2, role: "Swarm manager + Nomad server + Consul server" }
+      - { name: swarm-manager-3, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet10: 192.168.10.113, vmnet11: 192.168.70.113, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-manager-3, role: "Swarm manager + Nomad server + Consul server" }
+      - { name: swarm-worker-1,  os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet10: 192.168.10.131, vmnet11: 192.168.70.131, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-worker-1,  role: "Swarm worker + Nomad client" }
+      - { name: swarm-worker-2,  os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet10: 192.168.10.132, vmnet11: 192.168.70.132, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-worker-2,  role: "Swarm worker + Nomad client" }
+      - { name: swarm-worker-3,  os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet10: 192.168.10.133, vmnet11: 192.168.70.133, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-worker-3,  role: "Swarm worker + Nomad client" }
 
   spark:
     purpose: Apache Spark 3.5 + Iceberg + MinIO + JupyterHub
     phase: 0.L
     nodes:
-      - { name: spark-master,    os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 100, vmnet20: 192.168.10.141, vmnet21: 192.168.70.141, dir: H:\VMS\NexusPlatform\08-spark\spark-master,    role: "Spark master" }
-      - { name: spark-worker-1,  os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 200, vmnet20: 192.168.10.142, vmnet21: 192.168.70.142, dir: H:\VMS\NexusPlatform\08-spark\spark-worker-1,  role: "Spark worker" }
-      - { name: spark-worker-2,  os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 200, vmnet20: 192.168.10.143, vmnet21: 192.168.70.143, dir: H:\VMS\NexusPlatform\08-spark\spark-worker-2,  role: "Spark worker" }
-      - { name: minio-1,         os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 500, vmnet20: 192.168.10.144, vmnet21: 192.168.70.144, dir: H:\VMS\NexusPlatform\08-spark\minio-1,         role: "MinIO S3 store + Iceberg REST catalog" }
-      - { name: jupyterhub-1,    os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 80,  vmnet20: 192.168.10.145, vmnet21: 192.168.70.145, dir: H:\VMS\NexusPlatform\08-spark\jupyterhub-1,    role: "JupyterHub with PySpark kernel" }
+      - { name: spark-master,    os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 100, vmnet10: 192.168.10.141, vmnet11: 192.168.70.141, dir: H:\VMS\NexusPlatform\08-spark\spark-master,    role: "Spark master" }
+      - { name: spark-worker-1,  os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 200, vmnet10: 192.168.10.142, vmnet11: 192.168.70.142, dir: H:\VMS\NexusPlatform\08-spark\spark-worker-1,  role: "Spark worker" }
+      - { name: spark-worker-2,  os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 200, vmnet10: 192.168.10.143, vmnet11: 192.168.70.143, dir: H:\VMS\NexusPlatform\08-spark\spark-worker-2,  role: "Spark worker" }
+      - { name: minio-1,         os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 500, vmnet10: 192.168.10.144, vmnet11: 192.168.70.144, dir: H:\VMS\NexusPlatform\08-spark\minio-1,         role: "MinIO S3 store + Iceberg REST catalog" }
+      - { name: jupyterhub-1,    os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 80,  vmnet10: 192.168.10.145, vmnet11: 192.168.70.145, dir: H:\VMS\NexusPlatform\08-spark\jupyterhub-1,    role: "JupyterHub with PySpark kernel" }
 
   platform-tools:
     purpose: Harbor registry, Prefect, Unleash, Marquez, Backstage
     phase: 0.L
     nodes:
-      - { name: registry-1,     os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 400, vmnet20: 192.168.10.115, vmnet21: 192.168.70.115, dir: H:\VMS\NexusPlatform\09-platform\registry-1,     role: "Harbor + Trivy + replication" }
-      - { name: prefect-server, os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 80,  vmnet20: 192.168.10.140, vmnet21: 192.168.70.140, dir: H:\VMS\NexusPlatform\09-platform\prefect-server, role: "Prefect 3 OSS self-host" }
-      - { name: unleash-1,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet20: 192.168.10.146, vmnet21: 192.168.70.146, dir: H:\VMS\NexusPlatform\09-platform\unleash-1,      role: "Unleash feature flags" }
-      - { name: marquez,        os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet20: 192.168.10.147, vmnet21: 192.168.70.147, dir: H:\VMS\NexusPlatform\09-platform\marquez,        role: "Marquez (OpenLineage UI)" }
-      - { name: backstage,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet20: 192.168.10.148, vmnet21: 192.168.70.148, dir: H:\VMS\NexusPlatform\09-platform\backstage,      role: "Backstage service catalog (optional)" }
+      - { name: registry-1,     os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 400, vmnet10: 192.168.10.115, vmnet11: 192.168.70.115, dir: H:\VMS\NexusPlatform\09-platform\registry-1,     role: "Harbor + Trivy + replication" }
+      - { name: prefect-server, os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 80,  vmnet10: 192.168.10.140, vmnet11: 192.168.70.140, dir: H:\VMS\NexusPlatform\09-platform\prefect-server, role: "Prefect 3 OSS self-host" }
+      - { name: unleash-1,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.146, vmnet11: 192.168.70.146, dir: H:\VMS\NexusPlatform\09-platform\unleash-1,      role: "Unleash feature flags" }
+      - { name: marquez,        os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.147, vmnet11: 192.168.70.147, dir: H:\VMS\NexusPlatform\09-platform\marquez,        role: "Marquez (OpenLineage UI)" }
+      - { name: backstage,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.148, vmnet11: 192.168.70.148, dir: H:\VMS\NexusPlatform\09-platform\backstage,      role: "Backstage service catalog (optional)" }
 
   windows-workstations:
     purpose: Developer Windows 11 workstation for MAUI / nexus-desk test
     phase: 0.F / 10 / 13
     nodes:
-      - { name: nexusdesk-dev, os: win11ent, vcpu: 4, ram_gb: 12, disk_gb: 200, vmnet20: 192.168.10.150, vmnet21: 192.168.70.150, dir: H:\VMS\NexusPlatform\07-windows-workstations\nexusdesk-dev, role: "Windows 11 dev VM — MAUI + nexus-desk test host" }
+      - { name: nexusdesk-dev, os: win11ent, vcpu: 4, ram_gb: 12, disk_gb: 200, vmnet10: 192.168.10.150, vmnet11: 192.168.70.150, dir: H:\VMS\NexusPlatform\07-windows-workstations\nexusdesk-dev, role: "Windows 11 dev VM — MAUI + nexus-desk test host" }

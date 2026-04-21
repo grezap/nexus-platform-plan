@@ -44,7 +44,7 @@ Changes to canon (network, enhancements, gates) land here first, then propagate 
 ## Status
 
 - **v0.1.0 — Plan** (current) — canon published, no implementation yet.
-- Next: Phase 0.A — VMnet20 + VMnet21 creation on the target host.
+- Next: Phase 0.A — VMnet10 + VMnet11 creation on the target host.
 
 See [`CHANGELOG.md`](./CHANGELOG.md).
 

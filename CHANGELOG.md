@@ -6,6 +6,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-04-21 — "Phase 0.A errata + host bootstrap"
+
+### Changed
+
+- **Network canon amended**: `VMnet20` → **`VMnet10`**, `VMnet21` → **`VMnet11`**.
+  VMware Workstation Pro on Windows caps virtual networks at `vmnet0..vmnet19`
+  (confirmed by inspection of `C:\ProgramData\VMware\netmap.conf` which enumerates
+  `network0..network19`). The originally-published VMnet20/21 numbers were
+  unreachable on the platform. Subnets (192.168.10.0/24 and 192.168.70.0/24)
+  and roles are unchanged. Updated: `MASTER-PLAN.md`, `docs/infra/network.md`,
+  `docs/infra/vms.yaml`, `README.md`.
+
+### Added
+
+- `docs/infra/host-setup.md` — Phase 0.A runbook for creating `VMnet10`
+  (Host-Only, 192.168.10.0/24, DHCP off) and `VMnet11` (NAT, 192.168.70.0/24,
+  DHCP scoped .200–.250) on host `10.0.70.101` with both `vnetlib64.exe` CLI
+  and `vmnetcfg.exe` GUI paths, plus verification.
+- `scripts/phase-0a-create-vmnets.ps1` — elevated PowerShell that drives
+  `vnetlib64.exe` to stop services, register vmnet10/11, set type/subnet,
+  disable DHCP on vmnet10, scope DHCP on vmnet11, restart services, and
+  verify adapters appear in `Get-NetAdapter`.
+
 ## [0.1.0] — 2026-04-20 — "Plan"
 
 Initial canon publication. No implementation — planning artifacts only.
@@ -19,7 +42,7 @@ Initial canon publication. No implementation — planning artifacts only.
 - `docs/demo-data/README.md` — synthetic seed data kit specification.
 - `docs/adr/index.md` — ~75 planned ADRs catalogued with owners and status.
 - `docs/infra/vms.yaml` — ~65-VM inventory with IPs, VMnets, host directories, roles.
-- `docs/infra/network.md` — VMnet20 (Host-Only 192.168.10.0/24) + VMnet21 (NAT 192.168.70.0/24) canon.
+- `docs/infra/network.md` — VMnet10 (Host-Only 192.168.10.0/24) + VMnet11 (NAT 192.168.70.0/24) canon.
 - `schemas/` — 14 project subdirectories seeded with DDL skeletons.
 
 ### Canon decisions locked

@@ -1,13 +1,13 @@
 # Network Canon
 
-Every NexusPlatform VM is dual-NIC: one interface on **VMnet20** (cluster backplane, host-only) and one on **VMnet21** (management + applications, NAT). This document is the canonical description of those networks, the IP plan, and the procedures to create, verify, and rebuild them.
+Every NexusPlatform VM is dual-NIC: one interface on **VMnet10** (cluster backplane, host-only) and one on **VMnet11** (management + applications, NAT). This document is the canonical description of those networks, the IP plan, and the procedures to create, verify, and rebuild them.
 
 ## Overview
 
 | VMnet | Mode | CIDR | DHCP | Role | Default gateway |
 |---|---|---|---|---|---|
-| VMnet20 | Host-Only | 192.168.10.0/24 | Off | Cluster backplane — replication, heartbeats, Raft peers, Galera SST, CH Keeper, Patroni REST, Mongo replication, Kafka controller quorum | none (isolated) |
-| VMnet21 | NAT | 192.168.70.0/24 | Scoped 192.168.70.200–.250 (Packer only) | Mgmt, SSH/RDP, application traffic, app-facing endpoints | 192.168.70.2 (VMware NAT device) |
+| VMnet10 | Host-Only | 192.168.10.0/24 | Off | Cluster backplane — replication, heartbeats, Raft peers, Galera SST, CH Keeper, Patroni REST, Mongo replication, Kafka controller quorum | none (isolated) |
+| VMnet11 | NAT | 192.168.70.0/24 | Scoped 192.168.70.200–.250 (Packer only) | Mgmt, SSH/RDP, application traffic, app-facing endpoints | 192.168.70.2 (VMware NAT device) |
 
 Both VMnets are **freshly created** on host `10.0.70.101`. Existing VMnet1 / VMnet8 are not used to avoid IP collisions with other lab tenants.
 
@@ -15,19 +15,19 @@ Both VMnets are **freshly created** on host `10.0.70.101`. Existing VMnet1 / VMn
 
 Open **Virtual Network Editor** (run as admin; bundled with VMware Workstation Pro 25H2).
 
-### VMnet20 (Host-Only)
+### VMnet10 (Host-Only)
 
-1. Click **Add Network**, pick `VMnet20`. Click OK.
-2. With VMnet20 selected, set **Type → Host-only**.
+1. Click **Add Network**, pick `VMnet10`. Click OK.
+2. With VMnet10 selected, set **Type → Host-only**.
 3. **Uncheck** *Use local DHCP service to distribute IP addresses to VMs*.
 4. Set **Subnet IP** to `192.168.10.0`, **Subnet mask** to `255.255.255.0`.
 5. **Uncheck** *Connect a host virtual adapter to this network* (we do not want the host itself to appear on the backplane).
 6. Click **Apply**.
 
-### VMnet21 (NAT)
+### VMnet11 (NAT)
 
-1. Click **Add Network**, pick `VMnet21`. Click OK.
-2. With VMnet21 selected, set **Type → NAT**.
+1. Click **Add Network**, pick `VMnet11`. Click OK.
+2. With VMnet11 selected, set **Type → NAT**.
 3. **Check** *Use local DHCP service to distribute IP addresses to VMs*.
 4. Click **DHCP Settings…**; set **Start IP** `192.168.70.200`, **End IP** `192.168.70.250`. OK.
 5. Set **Subnet IP** to `192.168.70.0`, **Subnet mask** to `255.255.255.0`.
@@ -39,9 +39,9 @@ Screenshots will be added at `docs/infra/assets/network/vnet20-*.png` and `vnet2
 
 ## IP plan
 
-VMnet20 third octet encodes cluster role so that IPs read as cluster identity:
+VMnet10 third octet encodes cluster role so that IPs read as cluster identity:
 
-| Third octet | Cluster | VMnet20 range | Corresponding VMnet21 |
+| Third octet | Cluster | VMnet10 range | Corresponding VMnet11 |
 |---|---|---|---|
 | 10.10.x | SQL Server (FCI + AG) | .10–.14 | .10–.17 (VIPs .15–.17) |
 | 10.20.x | Kafka (East + West) | .21–.26 | .21–.26 |
@@ -59,7 +59,7 @@ VMnet20 third octet encodes cluster role so that IPs read as cluster identity:
 | 10.10.14x | Spark + MinIO + JupyterHub | .140–.145 | .140–.145 |
 | 10.10.150 | Windows workstations | .150 | .150 |
 
-Static-vs-DHCP policy: **all production VMs are static on both NICs.** DHCP on VMnet21 is scoped to `.200–.250` and used only by Packer during template creation.
+Static-vs-DHCP policy: **all production VMs are static on both NICs.** DHCP on VMnet11 is scoped to `.200–.250` and used only by Packer during template creation.
 
 Complete VM → IP map lives in [`vms.yaml`](./vms.yaml).
 
@@ -72,10 +72,10 @@ Complete VM → IP map lives in [`vms.yaml`](./vms.yaml).
 
 ## Firewall posture
 
-- **Linux** — UFW enabled on every VM. Default deny inbound, default allow outbound. SSH (22) allowed from VMnet21 only. Cluster ports allowed from the 192.168.10.0/24 subnet on VMnet20 only.
+- **Linux** — UFW enabled on every VM. Default deny inbound, default allow outbound. SSH (22) allowed from VMnet11 only. Cluster ports allowed from the 192.168.10.0/24 subnet on VMnet10 only.
 - **Windows** — Windows Firewall on, **Domain profile** since all Windows VMs are AD-joined. WinRM (5985/5986), RDP (3389), SQL (1433) allowed per-VM as required by role.
-- **Cluster backplane** — all replication / quorum / SST traffic binds to the VMnet20 IP. App traffic binds to the VMnet21 IP.
-- **Management** — SSH and RDP on VMnet21 only.
+- **Cluster backplane** — all replication / quorum / SST traffic binds to the VMnet10 IP. App traffic binds to the VMnet11 IP.
+- **Management** — SSH and RDP on VMnet11 only.
 
 ## mTLS posture (E15)
 
@@ -83,25 +83,25 @@ Enhancement **E15** — **Consul Connect** provides mutual TLS between services 
 
 ## Panic button — rebuild both VMnets
 
-If VMnet20 / VMnet21 configuration becomes inconsistent (e.g., after a VMware upgrade, or after an accidental "Restore Defaults"), follow this procedure from a Windows admin PowerShell:
+If VMnet10 / VMnet11 configuration becomes inconsistent (e.g., after a VMware upgrade, or after an accidental "Restore Defaults"), follow this procedure from a Windows admin PowerShell:
 
 ```
 # 1. Stop every running VM first (nexus-cli handles this if available)
 nexus-cli infrastructure stop-all
 
-# 2. Blow away the current VMnet20/21 definitions
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- remove adapter vmnet20
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- remove adapter vmnet21
+# 2. Blow away the current VMnet10/21 definitions
+"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- remove adapter vmnet10
+"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- remove adapter vmnet11
 
 # 3. Re-add them
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- add adapter vmnet20
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- set vnet vmnet20 addr 192.168.10.0
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- set vnet vmnet20 mask 255.255.255.0
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- update dhcp vmnet20         # (no-op — DHCP disabled)
+"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- add adapter vmnet10
+"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- set vnet vmnet10 addr 192.168.10.0
+"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- set vnet vmnet10 mask 255.255.255.0
+"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- update dhcp vmnet10         # (no-op — DHCP disabled)
 
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- add adapter vmnet21
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- set vnet vmnet21 addr 192.168.70.0
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- set vnet vmnet21 mask 255.255.255.0
+"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- add adapter vmnet11
+"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- set vnet vmnet11 addr 192.168.70.0
+"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- set vnet vmnet11 mask 255.255.255.0
 
 # 4. Verify Windows-side adapters
 ipconfig /all | findstr VMnet
