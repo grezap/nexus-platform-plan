@@ -1,0 +1,37 @@
+# gitleaks config — nexus-platform-plan
+#
+# Planning repo: should never contain real secrets at all. This config is the
+# same defense-in-depth layer used in implementation repos, mirrored here as
+# a belt-and-suspenders safety net. See docs/infra/licensing.md and
+# docs/adr/ADR-0144-windows-licensing.md.
+
+title = "nexus-platform-plan gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id          = "microsoft-product-key"
+description = "Microsoft Windows / Office product key (5x5 alphanumeric groups)"
+regex       = '''\b[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}\b'''
+tags        = ["key", "microsoft", "windows"]
+
+  [rules.allowlist]
+  description = "Placeholders in docs are intentionally literal"
+  regexes = [
+    '''XXXXX-XXXXX-XXXXX-XXXXX-XXXXX''',
+    '''00000-00000-00000-00000-00000''',
+    '''\{\{\s*product_key\s*\}\}''',
+  ]
+  paths = [
+    '''(?i)docs/.*licensing\.md$''',
+    '''(?i)docs/adr/ADR-0144.*\.md$''',
+    '''(?i)\.gitleaks\.toml$''',
+  ]
+
+[allowlist]
+description = "Repo-wide allowlist"
+paths = [
+  '''(?i)(^|/)CHANGELOG\.md$''',
+  '''(?i)(^|/)\.git/''',
+]

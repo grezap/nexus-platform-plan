@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `.gitignore` — top-level ignore rules covering OS/editor junk and, as
+  belt-and-suspenders for the planning repo, the same key-bearing-artifact
+  blocks used downstream (`**/Autounattend.xml` except `.tpl`,
+  `windows-keys.json`, `.nexus/`, `secrets/`, `*.pem`, `*.key`, `.env*`).
+- `.gitleaks.toml` — mirrors `nexus-infra-vmware/.gitleaks.toml` with the
+  `microsoft-product-key` custom rule.
+- `.github/workflows/secret-scan.yml` — runs `gitleaks detect` on every PR
+  and push to `main`.
+
 ## [0.1.3] — 2026-04-22 — "Windows licensing canon"
 
 ### Added

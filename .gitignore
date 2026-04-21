@@ -1,0 +1,27 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets — defense in depth (see docs/infra/licensing.md, ADR-0144)
+*.pem
+*.key
+!**/*.pub
+.env
+.env.local
+.vault_pass
+
+# Windows product keys (should never appear in this planning repo, but
+# blocked at source as a safety net if anyone ever pastes an Autounattend.xml
+# here while drafting).
+**/Autounattend.xml
+!**/Autounattend.xml.tpl
+windows-keys.json
+.nexus/
+secrets/
