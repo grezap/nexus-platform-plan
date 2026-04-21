@@ -1,41 +1,93 @@
 # Network Canon
 
-Every NexusPlatform VM is dual-NIC: one interface on **VMnet10** (cluster backplane, host-only) and one on **VMnet11** (management + applications, NAT). This document is the canonical description of those networks, the IP plan, and the procedures to create, verify, and rebuild them.
+Every NexusPlatform VM is dual-NIC: one interface on **VMnet10** (cluster backplane, Host-Only, isolated) and one on **VMnet11** (management + applications, Host-Only, routed through a dedicated `nexus-gateway` VM for internet egress). This document is the canonical description of those networks, the IP plan, and the procedures to create, verify, and rebuild them.
 
 ## Overview
 
 | VMnet | Mode | CIDR | DHCP | Role | Default gateway |
 |---|---|---|---|---|---|
 | VMnet10 | Host-Only | 192.168.10.0/24 | Off | Cluster backplane — replication, heartbeats, Raft peers, Galera SST, CH Keeper, Patroni REST, Mongo replication, Kafka controller quorum | none (isolated) |
-| VMnet11 | NAT | 192.168.70.0/24 | Scoped 192.168.70.200–.250 (Packer only) | Mgmt, SSH/RDP, application traffic, app-facing endpoints | 192.168.70.2 (VMware NAT device) |
+| VMnet11 | Host-Only | 192.168.70.0/24 | Off (served by `nexus-gateway` dnsmasq, scoped 192.168.70.200–.250 for Packer only) | Mgmt, SSH/RDP, application traffic, app-facing endpoints, internet egress for the lab | `192.168.70.1` (`nexus-gateway` VM) |
 
-Both VMnets are **freshly created** on host `10.0.70.101`. Existing VMnet1 / VMnet8 are not used to avoid IP collisions with other lab tenants.
+Host adapter IPs (verified on `10.0.70.101`):
+
+| Adapter | Host IP | Notes |
+|---|---|---|
+| VMware Network Adapter VMnet10 | `192.168.10.1/24` | Host sits on the backplane for nexus-cli probes; no default gateway |
+| VMware Network Adapter VMnet11 | `192.168.70.254/24` | `.1` reserved for `nexus-gateway` VM; host has no default gateway on this adapter |
+
+Both VMnets are **freshly created** on the host. Existing VMnet1 / VMnet8 belong to other tenants and are not touched.
+
+## Platform constraints (VMware Workstation Pro on Windows)
+
+These are hard limits of the platform — not choices. They shape the canon.
+
+| # | Constraint | Consequence |
+|---|---|---|
+| 1 | Exactly 20 virtual networks: `vmnet0..vmnet19` (enforced by `C:\ProgramData\VMware\netmap.conf`) | Canon cannot use VMnet20+; we use VMnet10 + VMnet11. |
+| 2 | **Exactly one NAT network per host** (slot held by existing VMnet8) | VMnet11 cannot be NAT. Lab egress is provided by the `nexus-gateway` VM (Linux NAT), not by VMware NAT. |
+| 3 | `vnetlib64.exe` on Workstation Pro 17.5+ silently no-ops many sub-commands (`set vnet … addr`, `add nat`, `add dhcp`) | Subnet / NAT / DHCP wiring must be done in `vmnetcfg.exe` GUI. `vnetlib64 add adapter` still works and is used as a preparatory step. |
+
+## `nexus-gateway` — the lab edge router
+
+VMnet11 is Host-Only at the VMware layer. Internet egress for all 65 lab VMs is provided by a dedicated Linux router VM (`nexus-gateway`), which is **VM #0** of the fleet — built before any other lab VM so that apt/yum/apt pulls and Docker image fetches just work.
+
+| Attribute | Value |
+|---|---|
+| Hostname | `nexus-gateway.nexus.local` |
+| OS | Debian 13 minimal (Packer-built) |
+| vCPU / RAM / Disk | 1 / 512 MB / 4 GB |
+| NIC 0 | Bridged to physical LAN — obtains internet via home DHCP/router |
+| NIC 1 | VMnet11 — static `192.168.70.1/24` |
+| NIC 2 | VMnet10 — static `192.168.10.1/24` (for backplane visibility only; **no** routing between VMnets) |
+| Services | `nftables` (masquerade 192.168.70.0/24 → NIC 0), `dnsmasq` (DHCP .200–.250, DNS forwarder), `chrony` (NTP source for lab), `node_exporter` |
+| Monitoring | Prometheus blackbox probe from host every 30s to `192.168.70.1:9100` |
+| HA | Single VM; cold-standby snapshot nightly. For Tier-1 HA rework see ADR-0142 (planned). |
+
+Packer template lives at `nexus-infra-vmware/packer/nexus-gateway/` (Phase 0.B deliverable). Cloud-init provisioning pulls `nftables.conf` and `dnsmasq.conf` from the repo so every rebuild is byte-identical.
+
+> **Why not Windows RRAS / ICS?** Rejected — host-specific, not reproducible, not versioned, breaks on Windows Updates. Canon requires every piece of infra to be code.
 
 ## Creation — Windows 11 host
 
-Open **Virtual Network Editor** (run as admin; bundled with VMware Workstation Pro 25H2).
+Open **Virtual Network Editor** (`vmnetcfg.exe`, run as Administrator — bundled with VMware Workstation Pro).
 
-### VMnet10 (Host-Only)
+### VMnet10 (Host-Only, isolated backplane)
 
 1. Click **Add Network**, pick `VMnet10`. Click OK.
 2. With VMnet10 selected, set **Type → Host-only**.
-3. **Uncheck** *Use local DHCP service to distribute IP addresses to VMs*.
-4. Set **Subnet IP** to `192.168.10.0`, **Subnet mask** to `255.255.255.0`.
-5. **Uncheck** *Connect a host virtual adapter to this network* (we do not want the host itself to appear on the backplane).
+3. ✅ Check *Connect a host virtual adapter to this network* (host sits at `.1` for nexus-cli probes).
+4. ❌ **Uncheck** *Use local DHCP service to distribute IP addresses to VMs* (all IPs static).
+5. Set **Subnet IP** to `192.168.10.0`, **Subnet mask** to `255.255.255.0`.
 6. Click **Apply**.
 
-### VMnet11 (NAT)
+### VMnet11 (Host-Only, routed via `nexus-gateway`)
 
 1. Click **Add Network**, pick `VMnet11`. Click OK.
-2. With VMnet11 selected, set **Type → NAT**.
-3. **Check** *Use local DHCP service to distribute IP addresses to VMs*.
-4. Click **DHCP Settings…**; set **Start IP** `192.168.70.200`, **End IP** `192.168.70.250`. OK.
+2. With VMnet11 selected, set **Type → Host-only**. **Not NAT** — see Platform Constraint #2.
+3. ✅ Check *Connect a host virtual adapter to this network*.
+4. ❌ **Uncheck** *Use local DHCP service to distribute IP addresses to VMs* (`nexus-gateway` dnsmasq serves DHCP, not VMware).
 5. Set **Subnet IP** to `192.168.70.0`, **Subnet mask** to `255.255.255.0`.
-6. Click **NAT Settings…**; confirm **Gateway IP** is `192.168.70.2`. OK.
-7. **Check** *Connect a host virtual adapter to this network* (host needs to SSH/RDP into VMs).
-8. Click **Apply**.
+6. Click **Apply**.
 
-Screenshots will be added at `docs/infra/assets/network/vnet20-*.png` and `vnet21-*.png` during Phase 0.A.
+### Host adapter bind
+
+After applying, cycle the adapters in an elevated pwsh session so Windows re-binds:
+
+```powershell
+Disable-NetAdapter -Name 'VMware Network Adapter VMnet10','VMware Network Adapter VMnet11' -Confirm:$false
+Start-Sleep 2
+Enable-NetAdapter  -Name 'VMware Network Adapter VMnet10','VMware Network Adapter VMnet11' -Confirm:$false
+```
+
+If Windows ends up with APIPA (`169.254.x.x`), hard-set the host IPs:
+
+```powershell
+New-NetIPAddress -InterfaceAlias 'VMware Network Adapter VMnet10' -IPAddress 192.168.10.1  -PrefixLength 24
+New-NetIPAddress -InterfaceAlias 'VMware Network Adapter VMnet11' -IPAddress 192.168.70.254 -PrefixLength 24
+```
+
+`192.168.70.1` is reserved for `nexus-gateway`; the host takes `.254` on VMnet11.
 
 ## IP plan
 
@@ -59,21 +111,24 @@ VMnet10 third octet encodes cluster role so that IPs read as cluster identity:
 | 10.10.14x | Spark + MinIO + JupyterHub | .140–.145 | .140–.145 |
 | 10.10.150 | Windows workstations | .150 | .150 |
 
-Static-vs-DHCP policy: **all production VMs are static on both NICs.** DHCP on VMnet11 is scoped to `.200–.250` and used only by Packer during template creation.
+Reserved on VMnet11: **`.1` = nexus-gateway**, **`.2`–`.9` = reserved for future edge appliances (pfSense standby, WireGuard bastion)**, **`.254` = host**.
+
+Static-vs-DHCP policy: **all production VMs are static on both NICs.** DHCP on VMnet11 (served by `nexus-gateway`) is scoped to `.200–.250` and used only by Packer during template creation.
 
 Complete VM → IP map lives in [`vms.yaml`](./vms.yaml).
 
 ## DNS
 
-- `dc-nexus` (192.168.70.10) runs Active Directory DNS. All Windows VMs join the AD domain `nexus.local` and receive DNS automatically.
-- Linux VMs use `dc-nexus` as primary resolver with `/etc/hosts` fallback during early bring-up (before AD is live).
-- Reverse zones configured for both subnets.
-- Service names (e.g. `obs-metrics.nexus.local`, `sql-ag-listener.nexus.local`) resolve host-wide from the workstation via Windows' DNS client.
+- `nexus-gateway` runs a `dnsmasq` DNS forwarder — authoritative for `*.nexus.local`, forwards everything else to `1.1.1.1` / `1.0.0.1`.
+- `dc-nexus` (192.168.70.10) runs Active Directory DNS once built. Windows VMs join AD domain `nexus.local`.
+- Linux VMs use `nexus-gateway` (192.168.70.1) as primary resolver.
+- Service names (e.g. `obs-metrics.nexus.local`, `sql-ag-listener.nexus.local`) resolve host-wide from the workstation by adding `192.168.70.1` as a secondary DNS on `VMware Network Adapter VMnet11`.
 
 ## Firewall posture
 
-- **Linux** — UFW enabled on every VM. Default deny inbound, default allow outbound. SSH (22) allowed from VMnet11 only. Cluster ports allowed from the 192.168.10.0/24 subnet on VMnet10 only.
+- **Linux** — `nftables` on every VM. Default deny inbound, default allow outbound. SSH (22) allowed from VMnet11 only. Cluster ports allowed from 192.168.10.0/24 on VMnet10 only.
 - **Windows** — Windows Firewall on, **Domain profile** since all Windows VMs are AD-joined. WinRM (5985/5986), RDP (3389), SQL (1433) allowed per-VM as required by role.
+- **nexus-gateway** — nftables rules: masquerade 192.168.70.0/24 out NIC 0; drop 192.168.10.0/24 → NIC 0 (backplane never egresses); accept established/related.
 - **Cluster backplane** — all replication / quorum / SST traffic binds to the VMnet10 IP. App traffic binds to the VMnet11 IP.
 - **Management** — SSH and RDP on VMnet11 only.
 
@@ -83,36 +138,38 @@ Enhancement **E15** — **Consul Connect** provides mutual TLS between services 
 
 ## Panic button — rebuild both VMnets
 
-If VMnet10 / VMnet11 configuration becomes inconsistent (e.g., after a VMware upgrade, or after an accidental "Restore Defaults"), follow this procedure from a Windows admin PowerShell:
+If VMnet10 / VMnet11 configuration becomes inconsistent (e.g., after a VMware upgrade, or after an accidental "Restore Defaults"), follow this procedure from an elevated pwsh:
 
-```
+```powershell
 # 1. Stop every running VM first (nexus-cli handles this if available)
 nexus-cli infrastructure stop-all
 
-# 2. Blow away the current VMnet10/21 definitions
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- remove adapter vmnet10
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- remove adapter vmnet11
+# 2. Remove the current VMnet10/11 adapters
+$vl = 'C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe'
+& $vl -- remove adapter vmnet10
+& $vl -- remove adapter vmnet11
 
-# 3. Re-add them
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- add adapter vmnet10
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- set vnet vmnet10 addr 192.168.10.0
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- set vnet vmnet10 mask 255.255.255.0
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- update dhcp vmnet10         # (no-op — DHCP disabled)
+# 3. Re-add the adapters (vnetlib64 'add adapter' still works on WS 17.5+)
+& $vl -- add adapter vmnet10
+& $vl -- add adapter vmnet11
 
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- add adapter vmnet11
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- set vnet vmnet11 addr 192.168.70.0
-"C:\Program Files (x86)\VMware\VMware Workstation\vnetlib64.exe" -- set vnet vmnet11 mask 255.255.255.0
+# 4. Complete subnet/type configuration in vmnetcfg.exe GUI (see "Creation" section above).
+#    vnetlib64 sub-commands for subnet/NAT/DHCP silently no-op on WS 17.5+; GUI is the only reliable path.
+Start-Process 'C:\Program Files (x86)\VMware\VMware Workstation\vmnetcfg.exe' -Verb RunAs
 
-# 4. Verify Windows-side adapters
-ipconfig /all | findstr VMnet
+# 5. Cycle adapters + verify host IPs
+Disable-NetAdapter -Name 'VMware Network Adapter VMnet10','VMware Network Adapter VMnet11' -Confirm:$false
+Start-Sleep 2
+Enable-NetAdapter  -Name 'VMware Network Adapter VMnet10','VMware Network Adapter VMnet11' -Confirm:$false
+Get-NetIPAddress -InterfaceAlias 'VMware Network Adapter VMnet10','VMware Network Adapter VMnet11' |
+    Where-Object AddressFamily -eq IPv4 | Format-Table InterfaceAlias, IPAddress, PrefixLength
 
-# 5. Restart VMware services
-net stop "VMware NAT Service"
-net start "VMware NAT Service"
-net stop "VMware DHCP Service"
-net start "VMware DHCP Service"
+# 6. Rebuild nexus-gateway (Packer, ~3 min) and power on
+cd <nexus-infra-vmware>
+packer build packer/nexus-gateway
+terraform -chdir=terraform/gateway apply -auto-approve
 
-# 6. Ping probe between two template VMs
+# 7. Ping probe between two template VMs
 nexus-cli infrastructure verify-network
 ```
 

@@ -139,8 +139,8 @@ Layered on top of the Volume docs to reach enterprise caliber. Each enhancement 
 
 | ID | Duration | Outputs | Exit gate |
 |---|---|---|---|
-| 0.A | 1 day | VMnet10 (HO 192.168.10.0/24) + VMnet11 (NAT 192.168.70.0/24) on host 10.0.70.101 | Ping between two throwaway VMs on both nets |
-| 0.B | 1 wk | Packer templates in `nexus-infra-vmware`: deb13, ubuntu24, ws2025-core, ws2025-desktop, win11ent | 5 golden `.vmx` in `H:\VMS\NexusPlatform\_templates\` |
+| 0.A | 1 day | VMnet10 (HO 192.168.10.0/24) + VMnet11 (HO 192.168.70.0/24) on host 10.0.70.101 — both Host-Only due to WS Pro Windows single-NAT-slot limit; egress deferred to nexus-gateway | Host adapters bind 192.168.10.1 + 192.168.70.254; vmnetcfg.exe shows both vnets |
+| 0.B | 1 wk | (0) `nexus-gateway` Debian 13 built FIRST (Bridged + VMnet11 + VMnet10 NICs; nftables masquerade; dnsmasq DHCP+DNS; chrony NTP). Then Packer templates in `nexus-infra-vmware`: deb13, ubuntu24, ws2025-core, ws2025-desktop, win11ent | `nexus-gateway` powered on; lab VM can `apt update` through it; 5 golden `.vmx` in `H:\VMS\NexusPlatform\_templates\` |
 | 0.C | 2 wk | Terraform modules in `nexus-infra-vmware` + `nexus-infra-swarm-nomad`: `vmware-desktop` provider, module per cluster, env targets (`full`, `data-engineering`, `ml`, `saas`, `microservices`, `demo-minimal`) | `terraform apply -target=module.foundation` boots dc-nexus + 3× vault + 3× obs |
 | 0.D | 1 wk | 3-node Vault Raft, AppRole, KV-v2 `nexus/*` paths, Consul | `vault kv get nexus/sqlserver/oltpdb` returns |
 | 0.E | 1 wk | Swarm (3+3) + Nomad servers/clients + Portainer EE | `docker node ls` shows 6, `nomad server members` shows 3 |

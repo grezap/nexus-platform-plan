@@ -3,23 +3,34 @@
 # Source of truth for nexus-infra-vmware Terraform modules.
 
 metadata:
-  updated: 2026-04-20
-  vm_count: 65
+  updated: 2026-04-21
+  vm_count: 66          # 65 lab VMs + nexus-gateway (VM #0)
   host: 10.0.70.101
-  hypervisor: VMware Workstation Pro 25H2
-  plan_version: v0.1.0
+  hypervisor: VMware Workstation Pro 17.5+
+  plan_version: v0.1.2
 
 networks:
   vmnet10:
     mode: host-only
     cidr: 192.168.10.0/24
     dhcp: false
+    host_ip: 192.168.10.1
     role: cluster-backplane
   vmnet11:
-    mode: nat
+    mode: host-only   # Workstation Pro on Windows allows only one NAT slot (held by VMnet8); egress via nexus-gateway
     cidr: 192.168.70.0/24
-    dhcp: { enabled: true, scope: "192.168.70.200-192.168.70.250", purpose: "Packer builds only" }
-    role: mgmt+app
+    dhcp: { enabled: true, served_by: nexus-gateway, scope: "192.168.70.200-192.168.70.250", purpose: "Packer builds only" }
+    host_ip: 192.168.70.254
+    gateway: 192.168.70.1    # nexus-gateway VM (Debian 13 + nftables masquerade)
+    role: mgmt+app+egress
+
+clusters:
+
+  edge:
+    purpose: Internet egress, DHCP, DNS forwarder, NTP source for the lab
+    phase: 0.B (built FIRST — before any other lab VM)
+    nodes:
+      - { name: nexus-gateway, os: deb13, vcpu: 1, ram_gb: 0.5, disk_gb: 4, bridged: true, vmnet10: 192.168.10.1, vmnet11: 192.168.70.1, dir: H:\VMS\NexusPlatform\00-edge\nexus-gateway, role: "Bridged NIC0 + VMnet11 NIC1 + VMnet10 NIC2; nftables masquerade; dnsmasq DHCP .200-.250 + DNS forwarder; chrony NTP" }
 
 storage:
   active: H:\VMS\NexusPlatform
