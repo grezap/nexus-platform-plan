@@ -18,6 +18,7 @@ Architecture Decision Records across the portfolio. Shared ADRs (0001–0010) ar
 | 0008 | Roslyn analyzer package — Nexus.Analyzers enforces modern .NET idioms | planned | 2026-04-20 |
 | 0009 | Result pattern library — ErrorOr vs. OneOf | proposed | 2026-04-20 |
 | 0010 | Python toolchain — uv + Ruff + mypy --strict + Pydantic v2 + Polars | planned | 2026-04-20 |
+| 0144 | [Windows licensing posture — MSDN primary, Evaluation fallback](./ADR-0144-windows-licensing.md) | accepted | 2026-04-22 |
 
 ## Per-project ADRs
 

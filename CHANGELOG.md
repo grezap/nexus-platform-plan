@@ -6,6 +6,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-04-22 — "Windows licensing canon"
+
+### Added
+
+- **ADR-0144** (`docs/adr/ADR-0144-windows-licensing.md`) — decision record for
+  the Windows licensing posture. Primary path: Visual Studio (MSDN) dev/test
+  keys for all owner builds on host `10.0.70.101`. Documented fallback:
+  Microsoft Evaluation Center ISOs (180 d Server, 90 d Win11, rearm-able) so
+  any third party cloning the blueprint can reproduce the lab without an MSDN
+  subscription.
+- `docs/infra/licensing.md` — canonical how-to covering Path A (Evaluation)
+  and Path B (MSDN), Vault KV paths `nexus/windows/product-keys/{ws2025-core,
+  ws2025-desktop, win11ent}`, Packer integration snippet, pre-Phase-0.D
+  bootstrap via NTFS-ACL'd `%USERPROFILE%\.nexus\secrets\windows-keys.json`,
+  5-layer defense-in-depth against key leakage (`.gitignore` + `.gitleaks.toml`
+  + pre-commit hook + CI gitleaks + Packer log filtering), operational
+  playbook (add template / rotate key / audit), FAQ.
+
+### Canon decisions locked
+
+- **Primary activation path**: MSDN dev/test keys, Vault-custodied.
+- **Fallback activation path**: Evaluation Center ISOs, rearm automated by
+  `nexus-cli infrastructure rearm-windows`.
+- **Keys-in-git posture**: zero. `Autounattend.xml` gitignored at every path;
+  only `Autounattend.xml.tpl` templates are versioned. Keys substitute at
+  Packer build time.
+- **`product_source` Packer variable**: `msdn` (default for owner) or
+  `evaluation` (default for the public blueprint) — single knob, no repo
+  changes needed to switch paths.
+
 ## [0.1.2] — 2026-04-21 — "Phase 0.A closeout + nexus-gateway pattern"
 
 ### Discovered (platform constraints)
