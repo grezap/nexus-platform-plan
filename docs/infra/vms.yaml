@@ -52,9 +52,13 @@ clusters:
     phase: 0.A-0.D / 0.I
     nodes:
       - { name: dc-nexus,     os: ws2025-desktop, vcpu: 2, ram_gb: 4,  disk_gb: 60,  vmnet10: 192.168.10.10, vmnet11: 192.168.70.10, dir: H:\VMS\NexusPlatform\01-foundation\dc-nexus,     role: "AD DC + DNS" }
-      - { name: vault-1,      os: deb13,          vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet10: 192.168.10.121, vmnet11: 192.168.70.121, dir: H:\VMS\NexusPlatform\01-foundation\vault-1,  role: "Vault Raft node 1" }
-      - { name: vault-2,      os: deb13,          vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet10: 192.168.10.122, vmnet11: 192.168.70.122, dir: H:\VMS\NexusPlatform\01-foundation\vault-2,  role: "Vault Raft node 2" }
-      - { name: vault-3,      os: deb13,          vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet10: 192.168.10.123, vmnet11: 192.168.70.123, dir: H:\VMS\NexusPlatform\01-foundation\vault-3,  role: "Vault Raft node 3" }
+      # Vault Raft nodes -- ram_gb dropped 4 -> 2 (approved deviation, ratified 0.D.4 close-out 2026-05-02).
+      # Vault runs comfortably at 2 GB at lab scale (3-node cluster + KV-v2 + PKI + LDAP at well under
+      # 50 % of the 2 GB). Build host RAM is the binding constraint per
+      # `feedback_prefer_less_memory.md`. Production-grade sizing reverts to 4 GB.
+      - { name: vault-1,      os: deb13,          vcpu: 2, ram_gb: 2,  disk_gb: 40,  vmnet10: 192.168.10.121, vmnet11: 192.168.70.121, dir: H:\VMS\NexusPlatform\01-foundation\vault-1,  role: "Vault Raft node 1" }
+      - { name: vault-2,      os: deb13,          vcpu: 2, ram_gb: 2,  disk_gb: 40,  vmnet10: 192.168.10.122, vmnet11: 192.168.70.122, dir: H:\VMS\NexusPlatform\01-foundation\vault-2,  role: "Vault Raft node 2" }
+      - { name: vault-3,      os: deb13,          vcpu: 2, ram_gb: 2,  disk_gb: 40,  vmnet10: 192.168.10.123, vmnet11: 192.168.70.123, dir: H:\VMS\NexusPlatform\01-foundation\vault-3,  role: "Vault Raft node 3" }
       - { name: obs-metrics,  os: deb13,          vcpu: 4, ram_gb: 12, disk_gb: 120, vmnet10: 192.168.10.90,  vmnet11: 192.168.70.90,  dir: H:\VMS\NexusPlatform\01-foundation\obs-metrics,  role: "Prometheus + VictoriaMetrics + Grafana + Alertmanager + Karma + Marquez" }
       - { name: obs-tracing,  os: deb13,          vcpu: 2, ram_gb: 8,  disk_gb: 80,  vmnet10: 192.168.10.93,  vmnet11: 192.168.70.93,  dir: H:\VMS\NexusPlatform\01-foundation\obs-tracing,  role: "Jaeger + OTel Collector" }
       - { name: obs-logging,  os: deb13,          vcpu: 2, ram_gb: 8,  disk_gb: 120, vmnet10: 192.168.10.94,  vmnet11: 192.168.70.94,  dir: H:\VMS\NexusPlatform\01-foundation\obs-logging,  role: "Seq + Vector" }

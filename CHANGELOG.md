@@ -6,7 +6,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Added — Phase 0.D sub-phase canonization (2026-05-02 housekeeping batch)
+
+- **`MASTER-PLAN.md` Phase 0.D expanded** from a one-week monolith to 5
+  named sub-phases (0.D.1–0.D.5) with explicit exit gates per sub-phase.
+  The original 1-week allocation in §4 stays neutral — 0.D.1 through 0.D.4
+  are already shipped within the original window; 0.D.5 (Transit
+  auto-unseal + GMSA + Vault Agent + leaf-TTL drop to 90 d) lands in the
+  remaining slack. Acceptance criterion line updated to
+  `vault kv get nexus/foundation/dc-nexus/dsrm` (the 0.D.4 deliverable
+  shape) — the original `nexus/sqlserver/oltpdb` path lands when 0.E or
+  the data env writes DB creds.
+
+- **ADR-0011** (`docs/adr/ADR-0011-vault-3-node-raft.md`) — 3-node Vault
+  Raft cluster on integrated Raft storage (no Consul dependency, since
+  Consul is canonically Phase 0.E). Dual-NIC topology (VMnet11 service
+  .121–.123 via dnsmasq dhcp-host MAC reservations; VMnet10 cluster
+  backplane 192.168.10.121-.123). Init JSON to `$HOME\.nexus\vault-init.json`
+  (mode 0600 via icacls), NOT in tfstate. KV-v2 mount at `nexus/`.
+  Userpass + AppRole at post-init. Approved RAM deviation: 2 GB per node
+  (vms.yaml originally said 4 GB; vms.yaml updated in this batch to match
+  observed sufficient sizing).
+
+- **ADR-0012** (`docs/adr/ADR-0012-vault-pki-hierarchy.md`) — two-tier PKI:
+  `pki/` root CA (10 y, signs only the intermediate) + `pki_int/`
+  intermediate (5 y) + `vault-server` PKI role (1 y leaf TTL,
+  `allow_ip_sans=true`). Per-node listener cert reissue with atomic-swap
+  + SIGHUP reload (zero-downtime). Root CA distributed to build host's
+  `$HOME\.nexus\vault-ca-bundle.crt` + every Vault node's system trust
+  store. Operator drops `VAULT_SKIP_VERIFY` and sets `VAULT_CACERT`
+  pointing at the bundle. Legacy 0.D.1 trust shuffle retired.
+
+- **ADR-0013** (`docs/adr/ADR-0013-vault-ldaps-search-then-bind.md`) —
+  LDAPS pulled forward from 0.D.5 to 0.D.3 (mid-phase deviation, ratified
+  via Canon mapping table) because plain LDAP/389 simple bind fails
+  wholesale in this AD env regardless of `LDAPServerIntegrity` (tested
+  values 2/1/0 — all reject). LDAPS leaf cert issued from `pki_int/issue/
+  vault-server` for `dc-nexus.nexus.lab`, installed in
+  `LocalMachine\My`, NTDS restarted. Vault auth/ldap = LDAPS,
+  search-then-bind, **`upndomain=""`** (Vault issue #27276 — `upndomain`
+  silently rewrites `{{.Username}}` in userfilter, breaking AD's
+  `sAMAccountName` semantics). `secrets/ldap` (`schema=ad`,
+  `password_policy=nexus-ad-rotated`) replaces deprecated `ad` engine.
+  Static rotate-role for `svc-demo-rotated` rotates the AD password
+  daily. AD-side bind account holds 4 ACEs on `OU=ServiceAccounts`
+  (Reset Password, Change Password, RP/WP `userAccountControl`),
+  delegated via `dsacls /I:S` — never via Account Operators shortcut.
+
+- **ADR-0014** (`docs/adr/ADR-0014-foundation-creds-via-approle-kv.md`) —
+  Foundation env's plaintext bootstrap defaults migrated to `nexus/foundation/...`
+  in Vault KV. Six paths seeded sticky-one-time (preserves operator
+  rotations): dsrm, local-administrator, nexusadmin, vault userpass,
+  svc-vault-ldap bind cred, svc-vault-smoke. Foundation env's
+  `provider "vault"` (~> 4.0) authenticates via AppRole role-id +
+  secret-id JSON sidecar at `$HOME\.nexus\vault-foundation-approle.json`
+  (mode 0600). Three `vault_kv_secret_v2` data sources resolve dsrm /
+  local-administrator / nexusadmin for the dc-nexus + jumpbox overlays.
+  `local.foundation_creds` ternary centralizes the
+  `enable_vault_kv_creds ? KV : variable-default` logic. Bind/smoke
+  overlays write back to KV after generating fresh AD pwds (best-effort
+  with vault-init.json probe). `nexus-foundation-reader` policy enforces
+  read on `nexus/foundation/*`, write only on `nexus/foundation/ad/*` —
+  positive + 2 negative tests in smoke gate. Default
+  `enable_vault_kv_creds` flipped `false → true` at close-out per
+  `feedback_terraform_partial_apply_destroys_resources.md`.
+
+### Updated
+
+- **`docs/infra/vms.yaml`** — vault-1/2/3 `ram_gb 4 → 2` (approved
+  deviation ratified at 0.D.4 close-out). Comment block above the nodes
+  documents the deviation rationale + production-grade revert path.
+
+- **`docs/adr/index.md`** — registers ADR-0011 / 0012 / 0013 / 0014 with
+  their status + dates.
+
+### Added — original (pre-0.D housekeeping)
 
 - `.gitignore` — top-level ignore rules covering OS/editor junk and, as
   belt-and-suspenders for the planning repo, the same key-bearing-artifact

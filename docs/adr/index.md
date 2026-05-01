@@ -18,6 +18,10 @@ Architecture Decision Records across the portfolio. Shared ADRs (0001–0010) ar
 | 0008 | Roslyn analyzer package — Nexus.Analyzers enforces modern .NET idioms | planned | 2026-04-20 |
 | 0009 | Result pattern library — ErrorOr vs. OneOf | proposed | 2026-04-20 |
 | 0010 | Python toolchain — uv + Ruff + mypy --strict + Pydantic v2 + Polars | planned | 2026-04-20 |
+| 0011 | [3-node Vault Raft cluster on the foundation tier](./ADR-0011-vault-3-node-raft.md) | accepted | 2026-04-30 |
+| 0012 | [Vault PKI hierarchy (root + intermediate) for lab-internal TLS](./ADR-0012-vault-pki-hierarchy.md) | accepted | 2026-05-01 |
+| 0013 | [LDAPS to AD via search-then-bind without `upndomain`; `secrets/ldap` over deprecated `ad`](./ADR-0013-vault-ldaps-search-then-bind.md) | accepted | 2026-05-01 |
+| 0014 | [Foundation env reads bootstrap creds from Vault KV via AppRole-authenticated `vault_kv_secret_v2` data sources](./ADR-0014-foundation-creds-via-approle-kv.md) | accepted | 2026-05-01 |
 | 0144 | [Windows licensing posture — MSDN primary, Evaluation fallback](./ADR-0144-windows-licensing.md) | accepted | 2026-04-22 |
 
 ## Per-project ADRs
