@@ -22,6 +22,7 @@ Architecture Decision Records across the portfolio. Shared ADRs (0001–0010) ar
 | 0012 | [Vault PKI hierarchy (root + intermediate) for lab-internal TLS](./ADR-0012-vault-pki-hierarchy.md) | accepted | 2026-05-01 |
 | 0013 | [LDAPS to AD via search-then-bind without `upndomain`; `secrets/ldap` over deprecated `ad`](./ADR-0013-vault-ldaps-search-then-bind.md) | accepted | 2026-05-01 |
 | 0014 | [Foundation env reads bootstrap creds from Vault KV via AppRole-authenticated `vault_kv_secret_v2` data sources](./ADR-0014-foundation-creds-via-approle-kv.md) | accepted | 2026-05-01 |
+| 0015 | [Phase 0.D.5: Transit auto-unseal + Vault Agent on member servers + leaf TTL drop + GMSA scaffolding + bootstrap-creds rotation](./ADR-0015-transit-auto-unseal-and-agent.md) | accepted | 2026-05-03 |
 | 0144 | [Windows licensing posture — MSDN primary, Evaluation fallback](./ADR-0144-windows-licensing.md) | accepted | 2026-04-22 |
 
 ## Per-project ADRs

@@ -56,9 +56,14 @@ clusters:
       # Vault runs comfortably at 2 GB at lab scale (3-node cluster + KV-v2 + PKI + LDAP at well under
       # 50 % of the 2 GB). Build host RAM is the binding constraint per
       # `feedback_prefer_less_memory.md`. Production-grade sizing reverts to 4 GB.
-      - { name: vault-1,      os: deb13,          vcpu: 2, ram_gb: 2,  disk_gb: 40,  vmnet10: 192.168.10.121, vmnet11: 192.168.70.121, dir: H:\VMS\NexusPlatform\01-foundation\vault-1,  role: "Vault Raft node 1" }
-      - { name: vault-2,      os: deb13,          vcpu: 2, ram_gb: 2,  disk_gb: 40,  vmnet10: 192.168.10.122, vmnet11: 192.168.70.122, dir: H:\VMS\NexusPlatform\01-foundation\vault-2,  role: "Vault Raft node 2" }
-      - { name: vault-3,      os: deb13,          vcpu: 2, ram_gb: 2,  disk_gb: 40,  vmnet10: 192.168.10.123, vmnet11: 192.168.70.123, dir: H:\VMS\NexusPlatform\01-foundation\vault-3,  role: "Vault Raft node 3" }
+      - { name: vault-1,      os: deb13,          vcpu: 2, ram_gb: 2,  disk_gb: 40,  vmnet10: 192.168.10.121, vmnet11: 192.168.70.121, dir: H:\VMS\NexusPlatform\01-foundation\vault-1,       role: "Vault Raft node 1" }
+      - { name: vault-2,      os: deb13,          vcpu: 2, ram_gb: 2,  disk_gb: 40,  vmnet10: 192.168.10.122, vmnet11: 192.168.70.122, dir: H:\VMS\NexusPlatform\01-foundation\vault-2,       role: "Vault Raft node 2" }
+      - { name: vault-3,      os: deb13,          vcpu: 2, ram_gb: 2,  disk_gb: 40,  vmnet10: 192.168.10.123, vmnet11: 192.168.70.123, dir: H:\VMS\NexusPlatform\01-foundation\vault-3,       role: "Vault Raft node 3" }
+      # Phase 0.D.5.5 -- vault-transit single-node companion. Hosts the transit
+      # secrets engine + seal key consumed by vault-1/2/3 for auto-unseal.
+      # Same Packer template as the cluster (firstboot's hostname-IP map covers
+      # .124). Per memory/feedback_vmware_per_vm_folders.md: own subdir.
+      - { name: vault-transit, os: deb13,         vcpu: 2, ram_gb: 2,  disk_gb: 40,  vmnet10: 192.168.10.124, vmnet11: 192.168.70.124, dir: H:\VMS\NexusPlatform\01-foundation\vault-transit, role: "Vault transit auto-unseal key custodian" }
       - { name: obs-metrics,  os: deb13,          vcpu: 4, ram_gb: 12, disk_gb: 120, vmnet10: 192.168.10.90,  vmnet11: 192.168.70.90,  dir: H:\VMS\NexusPlatform\01-foundation\obs-metrics,  role: "Prometheus + VictoriaMetrics + Grafana + Alertmanager + Karma + Marquez" }
       - { name: obs-tracing,  os: deb13,          vcpu: 2, ram_gb: 8,  disk_gb: 80,  vmnet10: 192.168.10.93,  vmnet11: 192.168.70.93,  dir: H:\VMS\NexusPlatform\01-foundation\obs-tracing,  role: "Jaeger + OTel Collector" }
       - { name: obs-logging,  os: deb13,          vcpu: 2, ram_gb: 8,  disk_gb: 120, vmnet10: 192.168.10.94,  vmnet11: 192.168.70.94,  dir: H:\VMS\NexusPlatform\01-foundation\obs-logging,  role: "Seq + Vector" }

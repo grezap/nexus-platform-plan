@@ -6,6 +6,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 0.D.5 canonization (2026-05-03)
+
+- **ADR-0015** (`docs/adr/ADR-0015-transit-auto-unseal-and-agent.md`) — Phase 0.D.5
+  groups five orthogonal posture tightenings: (5.1) `MinPasswordLength=14` +
+  KV-managed AD-cred rotation overlay (Administrator + nexusadmin synced
+  from KV; DSRM deferred to manual ops per Server 2025 SSH console-mode
+  limit); (5.2) leaf cert TTL `8760h → 2160h` (90 d) for Vault listeners +
+  dc-nexus LDAPS, with rotate-listener probe gaining a span-check that
+  catches TTL changes on existing certs; (5.3) GMSA scaffolding (KDS root
+  key probe-only -- Add-KdsRootKey on Server 2025 returns ERROR_NOT_SUPPORTED
+  under SSH; manual RDP/console ops -- plus `nexus-gmsa-consumers` AD group
+  + sample GMSA `gmsa-nexus-demo$`); (5.4) Vault Agent on dc-nexus +
+  nexus-jumpbox via per-host narrow AppRoles + creds JSON sidecars; (5.5)
+  Transit auto-unseal via new single-node `vault-transit` companion VM
+  (greenfield re-cluster operator-driven; code-complete, apply pending).
+
+- **`docs/infra/vms.yaml`** — `vault-transit` row added to the foundation
+  cluster (192.168.10.124 / 192.168.70.124, MAC `00:50:56:3F:00:43`, own
+  subdir `01-foundation/vault-transit/` per `feedback_vmware_per_vm_folders.md`).
+
+- **`docs/adr/index.md`** — registers ADR-0015.
+
 ### Added — Phase 0.D sub-phase canonization (2026-05-02 housekeeping batch)
 
 - **`MASTER-PLAN.md` Phase 0.D expanded** from a one-week monolith to 5
