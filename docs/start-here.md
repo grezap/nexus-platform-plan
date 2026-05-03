@@ -43,4 +43,6 @@ Add `--reset` to start from a clean slate. Use `nexus-cli demo trail DEMO-01` to
 
 Every playbook links to the relevant section of the [`MASTER-PLAN.md`](../MASTER-PLAN.md) so you can drop from the narrative straight into the architectural reasoning. From there, follow the links into [`docs/skills-coverage.md`](./skills-coverage.md) to see which of the four portfolio dimensions — .NET engineering and architecture, advanced SQL and analytics, Python, DevOps literacy — that piece of the project exercises, and why it was built that way.
 
+If a tool name comes up that you don't recognise — *Vault, Consul, Nomad, Iceberg, Kafka Connect, ksqlDB, Patroni, Marquez, Trivy, …* — open the [tool stack glossary](./glossary.md). It explains what each one **is** in plain English (universal definition first, NexusPlatform-specific role second), grouped by where in the stack it sits.
+
 Enjoy the tour. If something looks wrong or unclear, the author's contact details are in the repository root.
