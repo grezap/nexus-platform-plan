@@ -52,9 +52,11 @@ See [`CHANGELOG.md`](./CHANGELOG.md).
 
 - [`grezap/portfolio-index`](https://github.com/grezap/portfolio-index) — the public front door + skills matrix
 - [`grezap/local-data-stack`](https://github.com/grezap/local-data-stack) — Tier 0 dev substrate (v0.1.0 shipped)
+- [`grezap/nexus-infra-vmware`](https://github.com/grezap/nexus-infra-vmware) — Tier-1 foundation (Vault, AD, gateway). Phase 0.D fully closed.
+- [`grezap/nexus-infra-swarm-nomad`](https://github.com/grezap/nexus-infra-swarm-nomad) — Tier-2 orchestration (Docker Swarm + Nomad + Consul + Portainer). Phase 0.E.4 closed (~180-check chained smoke gate green).
+- [`grezap/nexus-cli`](https://github.com/grezap/nexus-cli) — operator surface; .NET 10 Native AOT. **v0.1.0 alpha shipped 2026-05-07** (Phase 0.F slice 1: `cluster-status` only).
 - Repos below are planned; links will be added as each ships:
-  - `nexus-shared` · `nexus-infra-vmware` · `nexus-infra-swarm-nomad` · `nexus-infra-k8s` · `nexus-infra-registry`
-  - `nexus-cli`
+  - `nexus-shared` · `nexus-infra-k8s` · `nexus-infra-registry`
   - 14 application projects (see MASTER-PLAN)
 
 ## License
