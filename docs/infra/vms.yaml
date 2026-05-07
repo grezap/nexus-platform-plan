@@ -3,11 +3,11 @@
 # Source of truth for nexus-infra-vmware Terraform modules.
 
 metadata:
-  updated: 2026-04-21
-  vm_count: 66          # 65 lab VMs + nexus-gateway (VM #0)
+  updated: 2026-05-07
+  vm_count: 67          # 65 lab VMs + nexus-gateway (VM #0) + vault-transit (Phase 0.D.5)
   host: 10.0.70.101
   hypervisor: VMware Workstation Pro 17.5+
-  plan_version: v0.1.2
+  plan_version: v0.1.4
 
 networks:
   vmnet10:
@@ -30,7 +30,7 @@ clusters:
     purpose: Internet egress, DHCP, DNS forwarder, NTP source for the lab
     phase: 0.B (built FIRST — before any other lab VM)
     nodes:
-      - { name: nexus-gateway, os: deb13, vcpu: 1, ram_gb: 0.5, disk_gb: 4, bridged: true, vmnet10: 192.168.10.1, vmnet11: 192.168.70.1, dir: H:\VMS\NexusPlatform\00-edge\nexus-gateway, role: "Bridged NIC0 + VMnet11 NIC1 + VMnet10 NIC2; nftables masquerade; dnsmasq DHCP .200-.250 + DNS forwarder; chrony NTP" }
+      - { name: nexus-gateway, os: deb13, vcpu: 1, ram_gb: 0.5, disk_gb: 4, bridged: true, vmnet10: 192.168.10.1, vmnet11: 192.168.70.1, dir: H:\VMS\NexusPlatform\00-edge\nexus-gateway, role: "Bridged NIC0 + VMnet11 NIC1 + VMnet10 NIC2; nftables masquerade + per-service allowlists; dnsmasq DHCP .200-.250 + DNS forwarder + lab-internal A-records (nexus.lab forward to dc-nexus, portainer.nexus.lab multi-A round-robin); chrony NTP; nfs-kernel-server (NFSv4-only export of /srv/nfs/portainer-data to swarm managers, Phase 0.E.4a)" }
 
 storage:
   active: H:\VMS\NexusPlatform
@@ -180,15 +180,26 @@ clusters:
       - { name: redis-6, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.89, vmnet11: 192.168.70.89, dir: H:\VMS\NexusPlatform\05-oltp\redis-6, role: "shard3 replica" }
 
   swarm:
-    purpose: Docker Swarm + Nomad + Consul
-    phase: 0.E
+    purpose: Docker Swarm + Nomad + Consul + Portainer CE (Phase 0.E)
+    phase: 0.E.1 (cluster bring-up) + 0.E.2 (Consul harden) + 0.E.3 (Nomad harden + Vault integration) + 0.E.4 (Portainer CE clustered Swarm service)
+    # RAM ratification 2026-05-07: original canon was 8 GB across the board (sized
+    # for combined Docker + Consul + Nomad + Portainer footprint with headroom).
+    # Observed-sufficient sizing on the live cluster post-0.E.4 closure:
+    #   - Managers (Swarm manager + Nomad server + Consul server + Portainer
+    #     server replica when scheduled here + Vault Agent + node_exporter):
+    #     6 GB peak ~50% utilization. 8 GB has 2 GB consistent headroom.
+    #   - Workers (Swarm worker + Nomad client + Consul client + Portainer
+    #     agent + Vault Agent + node_exporter): 4 GB peak ~40% utilization.
+    # Per memory/feedback_prefer_less_memory.md, canon updated to observed-
+    # sufficient sizing. Build host RAM is finite (66 VMs total); reclaiming
+    # 4*3 + 4*3 = 24 GB across the swarm tier alone is meaningful.
     nodes:
-      - { name: swarm-manager-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet10: 192.168.10.111, vmnet11: 192.168.70.111, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-manager-1, role: "Swarm manager + Nomad server + Consul server" }
-      - { name: swarm-manager-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet10: 192.168.10.112, vmnet11: 192.168.70.112, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-manager-2, role: "Swarm manager + Nomad server + Consul server" }
-      - { name: swarm-manager-3, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet10: 192.168.10.113, vmnet11: 192.168.70.113, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-manager-3, role: "Swarm manager + Nomad server + Consul server" }
-      - { name: swarm-worker-1,  os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet10: 192.168.10.131, vmnet11: 192.168.70.131, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-worker-1,  role: "Swarm worker + Nomad client" }
-      - { name: swarm-worker-2,  os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet10: 192.168.10.132, vmnet11: 192.168.70.132, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-worker-2,  role: "Swarm worker + Nomad client" }
-      - { name: swarm-worker-3,  os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 80, vmnet10: 192.168.10.133, vmnet11: 192.168.70.133, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-worker-3,  role: "Swarm worker + Nomad client" }
+      - { name: swarm-manager-1, os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 80, vmnet10: 192.168.10.111, vmnet11: 192.168.70.111, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-manager-1, role: "Swarm manager + Nomad server + Consul server + Portainer Server (when scheduled here) + Vault Agent" }
+      - { name: swarm-manager-2, os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 80, vmnet10: 192.168.10.112, vmnet11: 192.168.70.112, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-manager-2, role: "Swarm manager + Nomad server + Consul server + Portainer Server (when scheduled here) + Vault Agent" }
+      - { name: swarm-manager-3, os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 80, vmnet10: 192.168.10.113, vmnet11: 192.168.70.113, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-manager-3, role: "Swarm manager + Nomad server + Consul server + Portainer Server (when scheduled here) + Vault Agent" }
+      - { name: swarm-worker-1,  os: deb13, vcpu: 4, ram_gb: 4, disk_gb: 80, vmnet10: 192.168.10.131, vmnet11: 192.168.70.131, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-worker-1,  role: "Swarm worker + Nomad client + Consul client + Portainer Agent (global) + Vault Agent" }
+      - { name: swarm-worker-2,  os: deb13, vcpu: 4, ram_gb: 4, disk_gb: 80, vmnet10: 192.168.10.132, vmnet11: 192.168.70.132, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-worker-2,  role: "Swarm worker + Nomad client + Consul client + Portainer Agent (global) + Vault Agent" }
+      - { name: swarm-worker-3,  os: deb13, vcpu: 4, ram_gb: 4, disk_gb: 80, vmnet10: 192.168.10.133, vmnet11: 192.168.70.133, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-worker-3,  role: "Swarm worker + Nomad client + Consul client + Portainer Agent (global) + Vault Agent" }
 
   spark:
     purpose: Apache Spark 3.5 + Iceberg + MinIO + JupyterHub

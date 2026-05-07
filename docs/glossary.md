@@ -50,7 +50,13 @@ A small DNS forwarder + DHCP server. Lightweight enough to run on a tiny VM; com
 
 ### nftables
 Linux's modern firewall framework (the successor to `iptables`). Defines packet-filtering, NAT, and connection-tracking rules.
-*In NexusPlatform:* baseline firewall on every Linux VM (allow SSH from the management network, allow service-specific ports per role, deny everything else). On the gateway, also handles NAT masquerade for outbound internet egress.
+*In NexusPlatform:* baseline firewall on every Linux VM (allow SSH from the management network, allow service-specific ports per role, deny everything else). On the gateway, also handles NAT masquerade for outbound internet egress + per-service inbound allowlists (NFS:2049 from manager IPs only, etc.).
+*Footgun (Phase 0.E.4d):* Debian 13 routes `iptables` through `iptables-nft`, so Docker's iptables-installed rules end up in the kernel's nftables ruleset. Running `nft -f /etc/nftables.conf` (which starts with `flush ruleset`) wipes Docker's `DOCKER-INGRESS` DNAT rules, breaking Swarm published-port traffic until `systemctl restart docker` rebuilds them. Documented in [ADR-0018](./adr/ADR-0018-nftables-flush-ruleset-docker-conflict.md).
+
+### NFS / NFSv4
+**Network File System** — a protocol for sharing filesystems across machines over TCP. NFSv4 (the modern major version) collapses the v3-era multi-port mess (portmapper + mountd + nlockmgr + statd, all on dynamic ports) down to a single TCP/2049 listener — much friendlier for firewalled environments. Supports `fsid=0` to designate one export as the NFSv4 "pseudo-root" so clients mount via `server:/` rather than `server:/path`.
+*In NexusPlatform:* `nexus-gateway` hosts a single NFSv4-only export (`/srv/nfs/portainer-data`) for Portainer CE's `/data` directory (BoltDB + admin state) — Phase 0.E.4a. Per-manager mount via `192.168.70.1:/` at `/var/lib/portainer-data`. The gateway-as-NFS-host pattern is a lab consolidation (production would use a dedicated NFS appliance like NetApp / TrueNAS / Pure Storage); documented as a deviation in [ADR-0017](./adr/ADR-0017-portainer-ce-nfs-via-gateway.md).
+*Common alternatives:* CIFS/SMB (Windows-friendly), Ceph (distributed; for K8s CSI), GlusterFS (mostly retired).
 
 ---
 
@@ -90,23 +96,23 @@ A **container runtime + image format**. Packages an app and its OS-level depende
 *In NexusPlatform:* every workload from Phase 0.G onward ships as a Docker image. The build host runs Docker Desktop for local builds; the lab runs Docker Engine on every Linux VM that hosts containers.
 
 ### Docker Swarm
-Docker's **built-in clustering mode**. Joins multiple Docker hosts into a single virtual cluster ("swarm"). You define "services" with a desired replica count; Swarm spreads them across the nodes, restarts failed containers, and provides a virtual network mesh between them. Simpler operating model than Kubernetes (no separate control plane to install) but less feature-rich.
-*In NexusPlatform:* 6 nodes (3 managers + 3 workers) form the orchestration tier for app services that don't need full Kubernetes. Phase 0.E.
+Docker's **built-in clustering mode**. Joins multiple Docker hosts into a single virtual cluster ("swarm"). You define "services" with a desired replica count; Swarm spreads them across the nodes, restarts failed containers, and provides a virtual network mesh ("routing mesh") between them — published ports are reachable on every node IP and load-balanced via IPVS to active replicas. Simpler operating model than Kubernetes (no separate control plane to install) but less feature-rich.
+*In NexusPlatform:* 6 nodes (3 managers + 3 workers) form the orchestration tier — Phase 0.E. Manager Raft quorum tolerates 1-of-3 down. Used for long-running services that don't need full Kubernetes (Portainer Server, future app workloads). Co-located with Nomad + Consul on the same VMs.
 *Common alternatives:* Kubernetes (more powerful, heavier; we use it in Tier 3 via `nexus-infra-k8s`), Nomad (also runs containers but isn't container-only).
 
 ### HashiCorp Nomad
 A **workload scheduler** that runs containers, raw binaries, JVM jars, and batch jobs across a cluster. Lighter than Kubernetes — one binary, no container-only constraint, unified scheduling for both long-running services and one-shot batch jobs.
-*In NexusPlatform:* server-mode on the 3 Swarm managers, client-mode on the 3 workers. Complements Swarm by handling batch work (Spark drivers, ad-hoc data pipelines, NBomber load tests) that doesn't fit Swarm's "long-running service" model.
+*In NexusPlatform:* server-mode on the 3 Swarm managers, client-mode on the 3 workers — Phase 0.E.3. Hardened with mTLS for inter-agent RPC + raft (per-node leaf cert from `pki_int/issue/nomad-server` rendered by Vault Agent), HTTPS API on 4646 with `verify_server_hostname=true`, ACL `enabled=true` cluster-wide (mgmt token in Vault KV at `nexus/swarm/nomad-bootstrap-token`), and `vault {}` integration with the `nomad-cluster` periodic-token role (period=72h, allowed_policies=`nomad-jobs`) — Phase 0.E.3.3b. Inter-agent RPC authenticates via the mTLS cert SAN (Nomad's `acl{}` block doesn't have a `token` field). Complements Swarm by handling batch work (Spark drivers, ad-hoc data pipelines, NBomber load tests) that doesn't fit Swarm's "long-running service" model.
 *Common alternatives:* Kubernetes (with Argo Workflows for batch), AWS Batch, Apache Mesos (mostly retired).
 
 ### HashiCorp Consul
-**Service discovery + a small KV store + health checking + a service mesh**, all in one. When a service starts, it registers with Consul, gets a name (`postgres.service.consul`), and Consul's built-in DNS lets other services find it without hardcoded IPs. Health checks remove unreachable instances from rotation automatically. The "Consul Connect" subsystem provides mTLS between services backed by Vault PKI (Phase 0.E.5).
-*In NexusPlatform:* server quorum runs on the 3 Swarm managers; client agents run on the 3 workers. Glues Swarm and Nomad together — Nomad jobs find Swarm services through Consul DNS, and vice versa.
+**Service discovery + a small KV store + health checking + a service mesh**, all in one. When a service starts, it registers with Consul, gets a name (`postgres.service.consul`), and Consul's built-in DNS lets other services find it without hardcoded IPs. Health checks remove unreachable instances from rotation automatically. The "Consul Connect" subsystem provides mTLS between services backed by Vault PKI (deferred for now; Phase 0.E achieves transport-layer security via Vault PKI directly without Connect).
+*In NexusPlatform:* server quorum runs on the 3 Swarm managers; client agents run on the 3 workers — Phase 0.E.2. Hardened with gossip encryption (32-byte symmetric key from `nexus/swarm/consul-gossip-key`), mutual TLS for internal RPC + Raft (per-node leaf from `pki_int/issue/consul-server`), HTTPS-only operator API on 8501 (plain HTTP/8500 hard-cut via systemd drop-in `-http-port=-1`), ACL `default_policy=deny` with 6 per-host agent tokens persisted to `nexus/swarm/agent-tokens/<host>`. Glues Swarm and Nomad together — Nomad's `consul{address=127.0.0.1:8501}` config (Phase 0.E.3.3a) gives jobs service discovery via Consul DNS.
 *Common alternatives:* etcd (Kubernetes uses it), CoreDNS (DNS-only).
 
-### Portainer EE
-A **web UI on top of Docker / Swarm / Kubernetes**. Visual layer over the daily commands (`docker ps`, `docker service ls`, deployments, log tails, stack management). The "EE" is Enterprise Edition — free for up to 3 nodes; we run it in lab mode.
-*In NexusPlatform:* deployed as a clustered Swarm service across the 3 managers (no dedicated VM). Operator UI for the orchestration tier.
+### Portainer CE
+A **web UI on top of Docker / Swarm / Kubernetes**. Visual layer over the daily commands (`docker ps`, `docker service ls`, deployments, log tails, stack management). The CE is Community Edition — free, single-replica server (no native HA), unlimited nodes. Portainer EE adds active/standby HA + RBAC + audit logs; not needed at the lab tier.
+*In NexusPlatform:* deployed as a 2-service Docker Swarm stack (Phase 0.E.4) — `server` (1 replica, manager-pinned via `node.role==manager` constraint, ports 9443/8000) + `agent` (mode global, 1 task per node × 6 = full cluster visibility). Server's `/data` (BoltDB + admin state) lives on an NFSv4 share from `nexus-gateway` so Swarm-rescheduled replicas pick up the same state on a different manager. TLS leaf cert from `pki_int/issue/portainer-server` (CN `portainer.nexus.lab` + per-host IP SANs); admin password sticky-seeded at `nexus/portainer/admin-bcrypt` (24-char alphanumeric plaintext + bcrypt hash). UI: `https://portainer.nexus.lab:9443`. See [ADR-0017](./adr/ADR-0017-portainer-ce-nfs-via-gateway.md).
 
 ---
 
