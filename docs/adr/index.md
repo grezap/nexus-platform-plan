@@ -26,6 +26,11 @@ Architecture Decision Records across the portfolio. Shared ADRs (0001–0010) ar
 | 0016 | [Phase 0.E.3.3b: Nomad-Vault integration via legacy periodic-token role (vs. Workload Identity)](./ADR-0016-nomad-vault-legacy-periodic-token.md) | accepted | 2026-05-06 |
 | 0017 | [Phase 0.E.4: Portainer CE single-replica + NFS-via-gateway state continuity](./ADR-0017-portainer-ce-nfs-via-gateway.md) | accepted | 2026-05-07 |
 | 0018 | [Phase 0.E.4d: nftables `flush ruleset` + Docker iptables-nft conflict resolution](./ADR-0018-nftables-flush-ruleset-docker-conflict.md) | accepted | 2026-05-07 |
+| 0019 | [Phase 0.E.4e: TLS full-chain on the wire + `inet filter forward` accept rules](./ADR-0019-tls-fullchain-on-wire.md) | accepted | 2026-05-08 |
+| 0020 | [Phase 0.H.1: KRaft combined broker+controller mode for the Kafka tier](./ADR-0020-kraft-combined-mode.md) | accepted | 2026-05-15 |
+| 0021 | [Phase 0.H.2-0.H.5: Kafka-tier mTLS — Vault PKI PEM keystores, PKCS#1→PKCS#8, and the Confluent PEM/PKCS#12 listener split](./ADR-0021-kafka-tier-mtls-pem-pkcs12.md) | accepted | 2026-05-15 |
+| 0022 | [Phase 0.H.3-0.H.4: Terraform overlay ordering via `depends_on`, never upstream resource `.id` triggers](./ADR-0022-terraform-overlay-depends-on-not-id-triggers.md) | accepted | 2026-05-15 |
+| 0023 | [Phase 0.H.5: MirrorMaker 2 dedicated mode, one replication flow per node](./ADR-0023-mirrormaker2-dedicated-mode-one-flow-per-node.md) | accepted | 2026-05-15 |
 | 0144 | [Windows licensing posture — MSDN primary, Evaluation fallback](./ADR-0144-windows-licensing.md) | accepted | 2026-04-22 |
 
 ## Per-project ADRs

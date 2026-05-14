@@ -179,9 +179,10 @@ A **distributed log / streaming platform**. Producers write records to "topics";
 - **Kafka Connect** — Plugin framework for streaming data in and out of Kafka without writing custom producer/consumer code. *Source* connectors pull from external systems; *sink* connectors push to them.
 - **Debezium** — A Kafka Connect plugin doing **change data capture (CDC)** — reads the database transaction log directly and emits row-level change events as Kafka records. Lets you stream every INSERT/UPDATE/DELETE into Kafka without app-side changes.
 - **ksqlDB** — Streaming SQL on top of Kafka. `SELECT … FROM topic WHERE …` produces a continuously-updated result topic.
-- **MirrorMaker 2** — Cross-cluster Kafka replication. Mirrors topics between clusters for DR or geographic distribution.
+- **MirrorMaker 2** — Cross-cluster Kafka replication. Mirrors topics between clusters for DR or geographic distribution. Ships inside Apache Kafka as `connect-mirror-maker`; in "dedicated mode" each node runs a fixed replication flow (e.g. `east→west`) and prefixes mirrored topics with the source-cluster alias (`orders` on East → `east.orders` on West) so bidirectional replication stays loop-safe.
+- **Confluent REST Proxy** — An HTTP front door to Kafka. Lets clients that can't (or shouldn't) embed a native Kafka client — browsers, scripts, non-JVM services — produce and consume records, manage topics, and look up schemas over plain REST/JSON instead of the Kafka wire protocol.
 
-*In NexusPlatform:* two clusters (East + West) with MirrorMaker 2 between them; Schema Registry for governance; Connect + Debezium streams Postgres + SQL Server changes into Kafka; ksqlDB powers real-time aggregations; `streamcore` exercises the whole stack as a portfolio demo.
+*In NexusPlatform:* two 3-node KRaft clusters (East primary + West DR) with a MirrorMaker 2 pair between them; Schema Registry HA pair for governance; a REST Proxy for HTTP-only clients; Connect + Debezium streams Postgres + SQL Server changes into Kafka; ksqlDB powers real-time aggregations. Stood up as Phase 0.H (`nexus-infra-kafka`, 15 VMs, every node holding a per-node Vault-PKI keystore and talking to the brokers over mutual TLS); `streamcore` later exercises the whole stack as a portfolio demo.
 
 ---
 

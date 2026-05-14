@@ -81,35 +81,46 @@ clusters:
       fci: 192.168.70.16
       ag_listener: 192.168.70.17
 
+  # RAM ratification 2026-05-15 (Phase 0.H.6 close-out): all 15 03-kafka VMs
+  # run at the kafka-node template's baked 8 GB. The lighter per-role intent
+  # this section originally carried (SR/MM2 4 GB, REST 2 GB) never took
+  # effect -- modules/vm's `memory_mb` input is reserved-not-applied (see
+  # modules/vm/README.md), so every clone inherits the template's memsize.
+  # 8 GB is observed-sufficient (all 0.H.1-0.H.5 smoke gates green; broker +
+  # JVM-ecosystem heap well under 50%). Per memory/feedback_prefer_less_memory.md
+  # the lighter sizing is retained as the TARGET for a tracked future
+  # enhancement -- a resize-on-clone step in modules/vm (edit the cloned .vmx
+  # memsize, mirroring the existing NIC rewrite). Until that lands, vms.yaml
+  # reflects the 8 GB reality so it stays a faithful source of truth.
   kafka-east:
-    purpose: Primary Kafka cluster (KRaft)
-    phase: 0.H
+    purpose: Primary Kafka cluster (KRaft broker + controller, combined mode)
+    phase: 0.H.1 (KRaft bring-up) + 0.H.2 (broker mTLS)
     nodes:
       - { name: kafka-east-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.21, vmnet11: 192.168.70.21, dir: H:\VMS\NexusPlatform\03-kafka\kafka-east-1, role: "KRaft broker/controller" }
       - { name: kafka-east-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.22, vmnet11: 192.168.70.22, dir: H:\VMS\NexusPlatform\03-kafka\kafka-east-2, role: "KRaft broker/controller" }
       - { name: kafka-east-3, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.23, vmnet11: 192.168.70.23, dir: H:\VMS\NexusPlatform\03-kafka\kafka-east-3, role: "KRaft broker/controller" }
 
   kafka-west:
-    purpose: DR Kafka cluster (KRaft)
-    phase: 0.H
+    purpose: DR Kafka cluster (KRaft broker + controller, combined mode)
+    phase: 0.H.1 (KRaft bring-up) + 0.H.2 (broker mTLS)
     nodes:
       - { name: kafka-west-1, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.24, vmnet11: 192.168.70.24, dir: H:\VMS\NexusPlatform\03-kafka\kafka-west-1, role: "KRaft broker/controller" }
       - { name: kafka-west-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.25, vmnet11: 192.168.70.25, dir: H:\VMS\NexusPlatform\03-kafka\kafka-west-2, role: "KRaft broker/controller" }
       - { name: kafka-west-3, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.26, vmnet11: 192.168.70.26, dir: H:\VMS\NexusPlatform\03-kafka\kafka-west-3, role: "KRaft broker/controller" }
 
   kafka-ecosystem:
-    purpose: Schema Registry, Connect, ksqlDB, MM2, REST Proxy
-    phase: 0.H
+    purpose: Schema Registry HA pair, REST Proxy, Kafka Connect + Debezium, ksqlDB, MirrorMaker 2
+    phase: 0.H.3 (Schema Registry + REST Proxy) + 0.H.4 (Connect + Debezium + ksqlDB) + 0.H.5 (MirrorMaker 2)
     nodes:
-      - { name: schema-registry-1, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.91, vmnet11: 192.168.70.91, dir: H:\VMS\NexusPlatform\03-kafka\schema-registry-1, role: "Schema Registry primary" }
-      - { name: schema-registry-2, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.92, vmnet11: 192.168.70.92, dir: H:\VMS\NexusPlatform\03-kafka\schema-registry-2, role: "Schema Registry replica" }
+      - { name: schema-registry-1, os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 40, vmnet10: 192.168.10.91, vmnet11: 192.168.70.91, dir: H:\VMS\NexusPlatform\03-kafka\schema-registry-1, role: "Schema Registry primary" }
+      - { name: schema-registry-2, os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 40, vmnet10: 192.168.10.92, vmnet11: 192.168.70.92, dir: H:\VMS\NexusPlatform\03-kafka\schema-registry-2, role: "Schema Registry replica" }
       - { name: kafka-connect-1,  os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 40, vmnet10: 192.168.10.95, vmnet11: 192.168.70.95, dir: H:\VMS\NexusPlatform\03-kafka\kafka-connect-1, role: "Kafka Connect + Debezium" }
       - { name: kafka-connect-2,  os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 40, vmnet10: 192.168.10.96, vmnet11: 192.168.70.96, dir: H:\VMS\NexusPlatform\03-kafka\kafka-connect-2, role: "Kafka Connect + Debezium" }
       - { name: ksqldb-1,        os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 60, vmnet10: 192.168.10.97, vmnet11: 192.168.70.97, dir: H:\VMS\NexusPlatform\03-kafka\ksqldb-1, role: "ksqlDB primary" }
-      - { name: ksqldb-2,        os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 60, vmnet10: 192.168.10.98, vmnet11: 192.168.70.99, dir: H:\VMS\NexusPlatform\03-kafka\ksqldb-2, role: "ksqlDB replica" }
-      - { name: mm2-1,           os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.85, vmnet11: 192.168.70.85, dir: H:\VMS\NexusPlatform\03-kafka\mm2-1, role: "MirrorMaker 2 east→west" }
-      - { name: mm2-2,           os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.86, vmnet11: 192.168.70.86, dir: H:\VMS\NexusPlatform\03-kafka\mm2-2, role: "MirrorMaker 2 west→east" }
-      - { name: kafka-rest-1,    os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 30, vmnet10: 192.168.10.88, vmnet11: 192.168.70.88, dir: H:\VMS\NexusPlatform\03-kafka\kafka-rest-1, role: "REST Proxy" }
+      - { name: ksqldb-2,        os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 60, vmnet10: 192.168.10.98, vmnet11: 192.168.70.98, dir: H:\VMS\NexusPlatform\03-kafka\ksqldb-2, role: "ksqlDB replica" }
+      - { name: mm2-1,           os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 40, vmnet10: 192.168.10.85, vmnet11: 192.168.70.85, dir: H:\VMS\NexusPlatform\03-kafka\mm2-1, role: "MirrorMaker 2 east→west" }
+      - { name: mm2-2,           os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 40, vmnet10: 192.168.10.86, vmnet11: 192.168.70.86, dir: H:\VMS\NexusPlatform\03-kafka\mm2-2, role: "MirrorMaker 2 west→east" }
+      - { name: kafka-rest-1,    os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 30, vmnet10: 192.168.10.88, vmnet11: 192.168.70.88, dir: H:\VMS\NexusPlatform\03-kafka\kafka-rest-1, role: "REST Proxy" }
 
   starrocks:
     purpose: StarRocks FE + BE cluster
