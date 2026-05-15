@@ -31,6 +31,7 @@ Architecture Decision Records across the portfolio. Shared ADRs (0001–0010) ar
 | 0021 | [Phase 0.H.2-0.H.5: Kafka-tier mTLS — Vault PKI PEM keystores, PKCS#1→PKCS#8, and the Confluent PEM/PKCS#12 listener split](./ADR-0021-kafka-tier-mtls-pem-pkcs12.md) | accepted | 2026-05-15 |
 | 0022 | [Phase 0.H.3-0.H.4: Terraform overlay ordering via `depends_on`, never upstream resource `.id` triggers](./ADR-0022-terraform-overlay-depends-on-not-id-triggers.md) | accepted | 2026-05-15 |
 | 0023 | [Phase 0.H.5: MirrorMaker 2 dedicated mode, one replication flow per node](./ADR-0023-mirrormaker2-dedicated-mode-one-flow-per-node.md) | accepted | 2026-05-15 |
+| 0024 | [Phase 0.G.0: AOT exit gate raised to ≤30 MB; cluster-adapter framework for the data-tier verb expansion](./ADR-0024-aot-gate-amendment-and-cluster-adapter-framework.md) | accepted | 2026-05-15 |
 | 0144 | [Windows licensing posture — MSDN primary, Evaluation fallback](./ADR-0144-windows-licensing.md) | accepted | 2026-04-22 |
 
 ## Per-project ADRs

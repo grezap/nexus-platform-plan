@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 0.G.0 pre-flight canon (2026-05-15)
+
+- **MASTER-PLAN.md** — Phase 0.G row expanded from the `1 wk` placeholder to reflect the agreed scope: two new infra repos (`nexus-infra-oltp` + `nexus-infra-analytics`), 40 new VMs across tiers `02-sqlserver` + `04-analytics` + `05-oltp`, the `nexus-cli` `IClusterAdapter` framework SPI, and 13 verb groups per cluster (`cluster-status` · `failover-test` · **`scale-out`** add/remove · **`scale-up`** · `backup` · `health` · `topology --watch` · `cert-rotate` · `chaos` · `acl` · `demo`). AOT exit gate **raised from ≤25 MB to ≤30 MB** for Phase 0.G's `v0.6.x → v0.7.0` ships; the Phase 0.F historical `v0.5.0` ≤25 MB gate stays sealed. Sub-phase rows (`0.G.1`-`0.G.8`) will be added at Phase 0.G close-out, mirroring the 0.E.5 + 0.H.6 expansion pattern.
+- **ADR-0024** — *Phase 0.G.0: AOT exit gate raised to ≤30 MB; cluster-adapter framework for the data-tier verb expansion* — formalises the gate change rationale (full data-tier verb coverage at ~3 MB adapter cost; plugin model rejected as not AOT-friendly; trim-to-fit rejected as regressing master-plan E29), the `IClusterAdapter` SPI for one-adapter-per-cluster decomposition, the SSH-shell-out invariant for AOT-friendly footprint (mirrors ADR-0008), and the extended System B JSON demo spec shape (optional `prerequisites` / `expectedExitCode` / `expectedOutputContains` / `observe[]` / `whatProves` fields for self-verifying demos).
+- **`docs/adr/index.md`** — registers ADR-0024 (row inserted between 0023 and the licensing 0144 entry).
+
 ### Added — Phase 0.H canonization (2026-05-15)
 
 - **MASTER-PLAN.md** — the single `0.H` row expanded into sub-phase rows `0.H.1`-`0.H.6` (mirroring the 0.D / 0.E expansion); the Phase 0 total line notes Phase 0.H complete + `nexus-infra-kafka` tagged `v0.1.0`.
