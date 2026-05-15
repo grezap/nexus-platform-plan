@@ -43,18 +43,20 @@ Changes to canon (network, enhancements, gates) land here first, then propagate 
 
 ## Status
 
-- **v0.1.0 — Plan** (current) — canon published, no implementation yet.
-- Next: Phase 0.A — VMnet10 + VMnet11 creation on the target host.
+- **Phase 0 — Infrastructure** *(in flight, ~60% complete)*. Three of five infra repos are live and cold-rebuildable; the operator CLI is at `v0.4.0` (4 of 5 master-plan verbs); the Kafka ecosystem tier is tagged `v0.1.0`.
+- Phases closed: **0.B / 0.C / 0.D / 0.E / 0.H**. Phase 0.D foundation tier (Vault HA + PKI + LDAPS + Transit auto-unseal + GMSA scaffold + Vault Agents) ✅; Phase 0.E orchestration tier (3+3 Swarm + Nomad + Consul + Portainer CE, mTLS end-to-end) ✅ — tagged `v0.2.0`; Phase 0.H Kafka ecosystem tier (two KRaft clusters on mTLS + Schema Registry + Connect + Debezium + ksqlDB + MirrorMaker 2 DR pair) ✅ — tagged `v0.1.0`; Phase 0.F operator CLI ✅ through `v0.4.0`.
+- Next: pick from **0.F v0.5** (`kafka failover` — newly unblocked by 0.H), **0.G** (`local-data-stack` port to VMware), **0.I** (observability roll-out), or the application phases (Vol01-Vol13 starting with `dataflow-studio`).
 
-See [`CHANGELOG.md`](./CHANGELOG.md).
+See [`CHANGELOG.md`](./CHANGELOG.md) for canon history and [`MASTER-PLAN.md`](./MASTER-PLAN.md) for the full roadmap.
 
 ## Related repos
 
 - [`grezap/portfolio-index`](https://github.com/grezap/portfolio-index) — the public front door + skills matrix
-- [`grezap/local-data-stack`](https://github.com/grezap/local-data-stack) — Tier 0 dev substrate (v0.1.0 shipped)
-- [`grezap/nexus-infra-vmware`](https://github.com/grezap/nexus-infra-vmware) — Tier-1 foundation (Vault, AD, gateway). Phase 0.D fully closed.
-- [`grezap/nexus-infra-swarm-nomad`](https://github.com/grezap/nexus-infra-swarm-nomad) — Tier-2 orchestration (Docker Swarm + Nomad + Consul + Portainer). **`v0.2.0` tagged 2026-05-08 — Phase 0.E orchestration tier fully closed.** All 6 sub-phases sealed (0.E.1 swarm bring-up · 0.E.2 Consul harden · 0.E.3 Nomad harden · 0.E.4 Portainer CE · 0.E.4e cold-rebuild gate + 3 structural fixes · 0.E.5 close-out canon batch). Cold-rebuild proven end-to-end (`terraform destroy` → `packer build` → `terraform apply` → smoke-0.E.4e ALL GREEN with stock root-only CA bundle on build host).
-- [`grezap/nexus-cli`](https://github.com/grezap/nexus-cli) — operator surface; .NET 10 Native AOT. **v0.1.0 alpha shipped 2026-05-07** (Phase 0.F slice 1: `cluster-status` only).
+- [`grezap/local-data-stack`](https://github.com/grezap/local-data-stack) — Tier-0 dev substrate (`v0.1.0` shipped)
+- [`grezap/nexus-infra-vmware`](https://github.com/grezap/nexus-infra-vmware) — Tier-1 foundation: Vault HA + PKI + AD DS + dnsmasq gateway. **Phase 0.D fully closed** + the cross-tier Vault-side scaffolding consumed by Phase 0.E (consul/nomad/portainer PKI roles + AppRoles + per-host token sidecars) and Phase 0.H (kafka-broker PKI role + 15 AppRoles + sidecars).
+- [`grezap/nexus-infra-swarm-nomad`](https://github.com/grezap/nexus-infra-swarm-nomad) — Tier-2 orchestration (Docker Swarm + Nomad + Consul + Portainer CE). **`v0.2.0` tagged 2026-05-08 — Phase 0.E fully closed.** All 6 sub-phases sealed (0.E.1 swarm bring-up · 0.E.2 Consul harden · 0.E.3 Nomad harden · 0.E.4 Portainer CE · 0.E.4e cold-rebuild gate + 3 structural fixes · 0.E.5 close-out canon batch). Cold-rebuild proven end-to-end.
+- [`grezap/nexus-infra-kafka`](https://github.com/grezap/nexus-infra-kafka) — Tier-3 Kafka ecosystem (15 VMs: two 3-node KRaft clusters + Schema Registry HA pair + REST Proxy + Kafka Connect + Debezium + ksqlDB + MirrorMaker 2 cross-cluster DR pair). **`v0.1.0` tagged 2026-05-15 — Phase 0.H fully closed.** All 6 sub-phases sealed (0.H.1 KRaft bring-up · 0.H.2 broker mTLS · 0.H.3 Schema Registry + REST · 0.H.4 Connect + Debezium + ksqlDB · 0.H.5 MirrorMaker 2 + the phase exit gate · 0.H.6 close-out canon batch + cold-rebuild proof). Cold-rebuild proven end-to-end.
+- [`grezap/nexus-cli`](https://github.com/grezap/nexus-cli) — operator surface; .NET 10 Native AOT, 22.65 MB win-x64 binary (under the 25 MB exit gate). **`v0.4.0` shipped 2026-05-14 — 4 of 5 master-plan verbs live** (`cluster-status` · `infrastructure {list, status, suspend, resume}` · `failover-test {consul-leader, nomad-leader, swarm-manager}` — live RTOs 1.55s / 2.716s / 21.59s · `demo {list, run, record}`). `kafka failover` (v0.5) is the last remaining stub — newly unblocked by Phase 0.H.
 - Repos below are planned; links will be added as each ships:
   - `nexus-shared` · `nexus-infra-k8s` · `nexus-infra-registry`
   - 14 application projects (see MASTER-PLAN)

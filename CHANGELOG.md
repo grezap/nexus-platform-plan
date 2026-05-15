@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 0.H canonization (2026-05-15)
+
+- **MASTER-PLAN.md** — the single `0.H` row expanded into sub-phase rows `0.H.1`-`0.H.6` (mirroring the 0.D / 0.E expansion); the Phase 0 total line notes Phase 0.H complete + `nexus-infra-kafka` tagged `v0.1.0`.
+- **`docs/infra/vms.yaml`** — the `03-kafka` tier ratified: all 15 VMs run at the `kafka-node` template's baked 8 GB (`modules/vm`'s `memory_mb` resize is reserved-not-applied; the lighter per-role sizing is retained as a tracked future enhancement); `ksqldb-2`'s VMnet11 IP typo `.99` → `.98` fixed; `phase:` fields list the sub-phases.
+- **`docs/glossary.md` §5** — extended for the **Confluent REST Proxy** + a fuller **MirrorMaker 2** entry (dedicated mode, source-alias prefix). The "In NexusPlatform" line updated to reflect the 15-VM Kafka tier as Phase 0.H.
+- **ADR-0020** — *Phase 0.H.1: KRaft combined broker+controller mode for the Kafka tier* — combined-mode 3-node clusters (`process.roles=broker,controller`), no ZooKeeper VMs, per-cluster cluster-UUID minted at Terraform time.
+- **ADR-0021** — *Phase 0.H.2-0.H.5: Kafka-tier mTLS — Vault PKI PEM keystores, PKCS#1→PKCS#8, and the Confluent PEM/PKCS#12 listener split* — per-node Vault Agent + `kafka-tls-split.sh` (PKCS#1→#8 conversion via `openssl pkcs8 -topk8`, PEM pair + `keytool`-built PKCS#12 pair); brokers / Kafka clients / Schema Registry / REST Proxy use PEM; Connect / ksqlDB HTTPS listeners use PKCS#12 (their REST servers reject PEM).
+- **ADR-0022** — *Phase 0.H.3-0.H.4: Terraform overlay ordering via `depends_on`, never upstream resource `.id` triggers* — formalises the "id-trigger cascade anti-pattern" as a fleet-wide overlay-pattern rule: `triggers` key only on the overlay's own inputs; ordering via `depends_on`; overlays must be individually re-runnable + idempotent.
+- **ADR-0023** — *Phase 0.H.5: MirrorMaker 2 dedicated mode, one replication flow per node* — `connect-mirror-maker` dedicated mode (not on the 0.H.4 Connect cluster — isolates DR from CDC); one flow per node (`mm2-1` east→west, `mm2-2` west→east); systemd drop-in appends `--clusters <target>` to the baked ExecStart; embedded Connect REST left off; per-cluster `<alias>.ssl.*` auto-cascades to producer/consumer/admin.
+- **`docs/adr/index.md`** — six new shared-ADR rows added (0019-0023) including a previously-missing **ADR-0019** index entry.
+
+### Added — Phase 0.E canonization (2026-05-08)
+
+- **MASTER-PLAN.md** — the single `0.E` row expanded into sub-phase rows `0.E.1`-`0.E.5`; the Phase 0 total line notes Phase 0.E complete + `nexus-infra-swarm-nomad` tagged `v0.2.0`.
+- **`docs/infra/vms.yaml`** — the `06-orchestration` tier RAM-ratified (managers 6 GB / workers 4 GB observed-sufficient deviations from the original 8 GB across-the-board canon); `nexus-gateway` acquired the NFS server role for Portainer state continuity.
+- **`docs/glossary.md`** — extended for Docker / Docker Swarm / HashiCorp Nomad / HashiCorp Consul / Portainer CE.
+- **ADRs 0011-0019** cover Phase 0.D + 0.E architectural decisions: Vault HA (0011) · PKI hierarchy (0012) · LDAPS search-then-bind (0013) · foundation creds via AppRole + KV (0014) · Transit auto-unseal + Vault Agent on member servers (0015) · Nomad-Vault legacy periodic token (0016) · Portainer CE single-replica + NFS-via-gateway (0017) · nftables `flush ruleset` + Docker iptables-nft conflict (0018) · TLS full-chain on the wire + `inet filter forward` accept rules (0019).
+
 ### Added — Phase 0.D.5 canonization (2026-05-03)
 
 - **ADR-0015** (`docs/adr/ADR-0015-transit-auto-unseal-and-agent.md`) — Phase 0.D.5
