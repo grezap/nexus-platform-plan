@@ -15,6 +15,7 @@ It contains no application code. Every other repo in the portfolio references th
 |---|---|
 | Recruiter / non-technical viewer | [`docs/start-here.md`](./docs/start-here.md) — pick a 3–8 min demo scenario |
 | CTO / prospective client | [`MASTER-PLAN.md`](./MASTER-PLAN.md) — full scope, phases, acceptance gates |
+| **DevOps operator / lab rebuilder** | **[`docs/setup-guides.md`](./docs/setup-guides.md) — exact step-by-step replay path for every tier (28 VMs, 4 tiers): which VMs come alive in what order, how to bring each up from zero, selective-ops index ("set up only X")** |
 | Engineer reading the code | [`docs/skills-coverage.md`](./docs/skills-coverage.md) — which project demonstrates what |
 | Data architect | [`schemas/`](./schemas/) — enterprise DDL per project |
 | DevOps reviewer | [`docs/infra/`](./docs/infra/) — VM inventory, network canon, phase gates |
