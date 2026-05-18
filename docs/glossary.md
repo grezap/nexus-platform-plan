@@ -136,7 +136,19 @@ Microsoft's **enterprise relational database**. Industry-standard in .NET shops;
 
 ### Percona XtraDB Cluster (PXC)
 A **multi-master MySQL cluster** (a 5.7/8.0 fork of upstream MySQL). Every node accepts writes; Galera replication keeps all nodes synchronously in sync.
-*In NexusPlatform:* `tenantcore` SaaS demo runs on PXC behind ProxySQL.
+*In NexusPlatform:* `tenantcore` SaaS demo runs on PXC behind ProxySQL. 3-node PXC 8.0.45-36.1 (WSREP 26.1.4.3) on VMnet11, Galera SST/IST encrypted over VMnet10 backplane via `pxc-encrypt-cluster-traffic=ON`, mTLS-only on :3306 via per-host Vault PKI.
+
+### Galera (wsrep)
+A **synchronous multi-master replication library** used by Percona XtraDB Cluster + MariaDB Galera Cluster. Every write is certified across all nodes before commit. SST = State Snapshot Transfer (full datadir copy via xtrabackup-v2); IST = Incremental State Transfer (gcache replay).
+*In NexusPlatform:* Galera underpins PXC. Lessons baked at 0.G.3 ratification: `wsrep_sst_auth` moved from [mysqld] to [sst] in PXC 8.0; `pxc-encrypt-cluster-traffic=ON` requires careful newline handling in wsrep.cnf when downstream tooling appends config.
+
+### ProxySQL
+A **MySQL-protocol-aware connection pooler + load balancer**. Sits between apps and MySQL/PXC nodes; routes queries by hostgroup, handles failover detection, splits reads vs writes. `mysql_galera_hostgroups` natively understands Galera member state for PXC.
+*In NexusPlatform:* 2-node ProxySQL pair fronts the 3-node PXC cluster. Frontend on :6033, admin on :6032. `clustercheck` user probes Galera state; writer hostgroup (10) holds a single writable PXC node; backup_writer (20) + reader (30) take traffic on demote.
+
+### keepalived (VRRP)
+A **Linux daemon implementing VRRPv3** (Virtual Router Redundancy Protocol). Floats a virtual IP between cluster nodes by priority; the highest-priority healthy node holds the VIP. Health-script-driven priority demotion + preemption.
+*In NexusPlatform:* 2 ProxySQL nodes share a VIP (`.50`) so apps connect to a single address regardless of which ProxySQL is MASTER. **Unicast mode** (`unicast_src_ip` + `unicast_peer`) — VMware Workstation's virtual networks (e.g., VMnet11) don't reliably forward IPv4 multicast `224.0.0.18`, so multicast VRRP causes split-brain. Lesson canonicalized at 0.G.3.5c chunk 1 ratification.
 
 ### MongoDB
 A **document database**. Stores JSON-shaped records ("documents") with a flexible schema. Horizontal scaling via sharding, HA via replica sets.
