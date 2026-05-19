@@ -1,6 +1,6 @@
 # Host setup — Phase 0.A: VMnet bootstrap
 
-Canonical runbook for preparing host `10.0.70.101` (Windows 11 Pro, VMware Workstation Pro) for the NexusPlatform 65-VM lab. **Revision history:** v0.1.1 assumed `vnetlib64.exe` could fully automate this; host verification proved it cannot on Workstation Pro 17.5+. v0.1.2 (this document) uses the GUI as the canonical configuration surface and limits `vnetlib64.exe` to adapter creation only.
+Canonical runbook for preparing host `10.0.70.101` (Windows 11 Pro, VMware Workstation Pro) for the NexusPlatform 53-VM lab (50 VMs cold-rebuild proven as of 2026-05-19; 3 awaiting Phase 0.G.7 SQL Server FCI+AG). **Revision history:** v0.1.1 assumed `vnetlib64.exe` could fully automate this; host verification proved it cannot on Workstation Pro 17.5+. v0.1.2 uses the GUI as the canonical configuration surface and limits `vnetlib64.exe` to adapter creation only. v0.1.3 (this document) corrects the VM count from the speculative 65-VM scope to the realized 53-VM plan after the 0.G.* canonicalization (per-cluster + per-engine pattern shrank the OLTP footprint vs. the original monolithic estimate).
 
 ## Prerequisites
 

@@ -12,7 +12,7 @@ cross-env operator order · §1.3 apply · §1.4 verify · §1.5 selective ops �
 §1.6 destroy · §3.1 cold-rebuild canon. This page is the cross-tier index;
 each row links to the canonical detail.
 
-## Inventory — what the lab has built so far (28 VMs across 4 tiers)
+## Inventory — what the lab has built so far (50 VMs cold-rebuild proven across 5 tiers, 53 planned)
 
 | Tier | Repo | VMs | Phase |
 |---|---|---|---|
@@ -20,8 +20,9 @@ each row links to the canonical detail.
 | **01-foundation** | `nexus-infra-vmware` (`envs/foundation` + `envs/security`) | `dc-nexus`, `nexus-jumpbox`, `vault-1/2/3`, `vault-transit` (6) | 0.C.1-0.D.5 |
 | **06-orchestration** | `nexus-infra-swarm-nomad` (`envs/swarm-nomad`) | `swarm-manager-1/2/3`, `swarm-worker-1/2/3` (6) | 0.E |
 | **03-kafka** | `nexus-infra-kafka` (`envs/kafka`) | `kafka-east-1/2/3`, `kafka-west-1/2/3`, `schema-registry-1/2`, `kafka-rest-1`, `kafka-connect-1/2`, `ksqldb-1/2`, `mm2-1/2` (15) | 0.H |
+| **05-oltp** | `nexus-infra-oltp` (per-cluster envs: `envs/oltp-redis`, `envs/oltp-mongo`, `envs/oltp-percona`, `envs/oltp-patroni`) | `redis-1..6` (6) · `mongo-1/2/3` (3) · `pxc-1/2/3` + `proxysql-1/2` (5) · `pg-primary` + `pg-replica-1/2` + `etcd-1/2/3` + `haproxy-pg-1/2` (8) — VRRP VIPs `.50` (proxysql) + `.60` (haproxy-pg). **22 of 25 cold-rebuild proven**; SQL Server FCI+AG (`sql-1/2/3`) deferred to 0.G.7. | 0.G.1-0.G.4 |
 
-**Total: 28 VMs. All tiers tagged + cold-rebuildable as of 2026-05-15.**
+**Total: 50 VMs cold-rebuild proven (2026-05-19). All tiers tagged on their repos; OLTP tier closes when 0.G.7 lands the SQL Server cluster (53 VMs final).**
 
 ## Per-tier from-zero replay matrix
 
@@ -36,6 +37,10 @@ verification, and the selective-ops examples.
 | **The security tier** (3-node Vault HA Raft + `vault-transit` + PKI hierarchy + LDAPS + `secrets/ldap` rotation + foundation-cred KV migration + 0.D.5 stack) | [`nexus-infra-vmware/docs/handbook.md` §B — Security tier from zero](https://github.com/grezap/nexus-infra-vmware/blob/main/docs/handbook.md) | Foundation tier **alive** (§A above must be ALL GREEN) | ~30-45 min |
 | **The orchestration tier** (6-node Docker Swarm + Nomad + Consul + Portainer CE, mTLS end-to-end) | [`nexus-infra-swarm-nomad/docs/handbook.md` §1 — Phase 0.E full tier bring-up](https://github.com/grezap/nexus-infra-swarm-nomad/blob/main/docs/handbook.md) | Foundation tier **alive** + security tier **alive** (Vault HA serves the per-node Vault Agents) | ~25-35 min |
 | **The Kafka tier** (two 3-node KRaft clusters + Schema Registry + REST Proxy + Connect + Debezium + ksqlDB + MirrorMaker 2) | [`nexus-infra-kafka/docs/handbook.md` §1 — Phase walkthrough](https://github.com/grezap/nexus-infra-kafka/blob/main/docs/handbook.md) | Foundation tier **alive** + security tier **alive** (the kafka env reads per-host AppRole sidecars from the security env at plan time) | ~30-40 min |
+| **The OLTP Redis cluster** (6-node Redis 8.0 Cluster, mTLS via Vault PKI) | [`nexus-infra-oltp/docs/handbook.md` §1 — Redis cluster from zero](https://github.com/grezap/nexus-infra-oltp/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** (env reads per-host AppRoles from security at plan time) | ~10-15 min |
+| **The OLTP MongoDB Replica Set** (3-node MongoDB 8.0 RS, keyFile + Vault-issued mTLS) | [`nexus-infra-oltp/docs/handbook.md` §2 — MongoDB RS from zero](https://github.com/grezap/nexus-infra-oltp/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** | ~10-15 min |
+| **The OLTP Percona PXC + ProxySQL HA pair** (3-node Percona XtraDB Cluster + 2-node ProxySQL with VRRP VIP `192.168.70.50`, mTLS) | [`nexus-infra-oltp/docs/handbook.md` §3 — PXC + ProxySQL from zero](https://github.com/grezap/nexus-infra-oltp/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** | ~15-20 min |
+| **The OLTP Patroni Postgres HA cluster** (3-node Patroni + PG 17 + 3-node etcd 3.5 DCS + 2-node HAProxy 3 HA pair with VRRP VIP `192.168.70.60`, mTLS) | [`nexus-infra-oltp/docs/handbook.md` §3 — Patroni cluster from zero + §3.4 the 18-transient chronology](https://github.com/grezap/nexus-infra-oltp/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** | ~20-30 min |
 
 ## Selective ops index — "set up only X"
 
@@ -53,6 +58,20 @@ iteration section with copy-pasteable `-Vars` examples.
 | Iterate on the swarm cluster bring-up alone (assumes clones already exist) | `pwsh -File scripts\swarm.ps1 apply -Vars enable_swarm_init=true` — swarm-nomad handbook §1.4 |
 | Only the east KRaft cluster (skip west + all ecosystem nodes) | `pwsh -File scripts\kafka.ps1 apply -Vars enable_kafka_west=false, enable_schema_registry=false, enable_kafka_rest=false, enable_kafka_connect=false, enable_ksqldb=false, enable_mm2=false` — kafka handbook §1.5 |
 | Only the MirrorMaker 2 overlay (assumes the rest of the tier is up) | `pwsh -File scripts\kafka.ps1 apply -Vars enable_mm2_config=true` — kafka handbook §1.5 |
+| Only the Redis cluster (cold rebuild a single OLTP cluster — per-cluster env, per-engine Packer template) | `pwsh -File scripts\oltp.ps1 apply -Env oltp-redis` — oltp handbook §1.5 |
+| Only the MongoDB RS | `pwsh -File scripts\oltp.ps1 apply -Env oltp-mongo` — oltp handbook §1.5 |
+| Only the Percona + ProxySQL pair + VIP `.50` | `pwsh -File scripts\oltp.ps1 apply -Env oltp-percona` — oltp handbook §1.5 |
+| Only the Patroni + etcd + HAProxy HA pair + VIP `.60` | `pwsh -File scripts\oltp.ps1 apply -Env oltp-patroni` — oltp handbook §1.5 |
+| Only the Patroni-cluster Vault-side state (re-apply just the AppRoles + sidecars before a Patroni rebuild) | `pwsh -File scripts\security.ps1 apply -Vars enable_patroni_agent_setup=true` — vmware handbook §B |
+| Only one Patroni replica (re-clone after VM corruption) | `pwsh -File scripts\oltp.ps1 apply -Env oltp-patroni -Vars enable_pg_primary=false,enable_pg_replica_2=false,enable_etcd_1=false,enable_etcd_2=false,enable_etcd_3=false,enable_haproxy_pg_1=false,enable_haproxy_pg_2=false` — oltp handbook §1.5 |
+
+> **OLTP architectural canon (`feedback_per_cluster_state_per_engine_template.md`):** the
+> 4 OLTP clusters use the **per-cluster Terraform state + per-engine Packer template**
+> pattern, born from 0.G.3's 16-transient stall and canonized in 0.G.3.5. Each cluster
+> has its own env directory (`envs/oltp-redis`, `envs/oltp-mongo`, `envs/oltp-percona`,
+> `envs/oltp-patroni`) + its own per-engine Packer template (`oltp-redis-node`,
+> `oltp-mongo-node`, `oltp-pxc-node`, `oltp-patroni-node`, `oltp-haproxy-node`). Apply
+> them in any order; iterations to one cluster never touch another.
 
 > **Gotcha (`feedback_terraform_partial_apply_destroys_resources.md`):** every
 > `-Vars` invocation is the FULL override set for that apply — vars not passed
@@ -72,7 +91,7 @@ canonical handbook section; this page just gives you the order.
 # create VMnet10 + VMnet11, load the lab SSH key into ssh-agent.
 # See: nexus-infra-vmware/docs/handbook.md §0.
 
-# Then build every Packer template the 28-VM fleet needs (~45-60 min total):
+# Then build every Packer template the 50-VM fleet needs (~60-90 min total):
 cd nexus-infra-vmware\packer\deb13          && packer init . && packer build .
 cd ..\ws2025-desktop                         && packer init . && packer build .
 cd ..\vault                                  && packer init . && packer build .
@@ -82,6 +101,14 @@ cd nexus-infra-swarm-nomad\packer\swarm-node && packer init . && packer build .
 cd ..\..\..
 
 cd nexus-infra-kafka\packer\kafka-node       && packer init . && packer build .
+cd ..\..\..
+
+# OLTP — per-engine Packer template per cluster (0.G.3.5 canon):
+cd nexus-infra-oltp\packer\oltp-redis-node   && packer init . && packer build .
+cd ..\oltp-mongo-node                         && packer init . && packer build .
+cd ..\oltp-pxc-node                           && packer init . && packer build .
+cd ..\oltp-patroni-node                       && packer init . && packer build .
+cd ..\oltp-haproxy-node                       && packer init . && packer build .
 cd ..\..\..
 
 # ─── TIER 1 — FOUNDATION (must come up FIRST, every other tier depends on it) ─
@@ -109,11 +136,38 @@ foreach ($p in '0.H.2','0.H.3','0.H.4','0.H.5') {
 # Expect: ALL <p> SMOKE CHECKS PASSED for each (215 total checks across the 4 gates).
 # 0.H.1 is the PLAINTEXT-era gate -- its plaintext probes correctly fail once
 # 0.H.2 flips the brokers to mTLS, so it is NOT part of a built-tier sweep.
+cd ..
+
+# ─── TIER 5 — OLTP DATA TIER (4 clusters, per-cluster envs; needs foundation + security) ─
+# Per-cluster Terraform state + per-engine Packer template canon (0.G.3.5). Each
+# cluster apply is independent + small-blast-radius; iterations to one never touch
+# another. The 4 envs can be applied in ANY order; they share no Terraform state.
+cd nexus-infra-oltp
+
+# 0.G.1 -- 6-node Redis 8.0 Cluster (mTLS):
+pwsh -File scripts\oltp.ps1 apply -Env oltp-redis     # ~10-15 min
+pwsh -File scripts\oltp.ps1 smoke -Phase 0.G.1        # ALL GREEN
+
+# 0.G.2 -- 3-node MongoDB 8.0 RS (keyFile + mTLS):
+pwsh -File scripts\oltp.ps1 apply -Env oltp-mongo     # ~10-15 min
+pwsh -File scripts\oltp.ps1 smoke -Phase 0.G.2        # ALL GREEN
+
+# 0.G.3 -- 3-node Percona XtraDB Cluster + 2-node ProxySQL with VRRP VIP .50 (mTLS):
+pwsh -File scripts\oltp.ps1 apply -Env oltp-percona   # ~15-20 min
+pwsh -File scripts\oltp.ps1 smoke -Phase 0.G.3        # ALL GREEN
+
+# 0.G.4 -- 3-node Patroni PG 17 HA + 3-node etcd 3.5 DCS + 2-node HAProxy 3 HA pair
+# with VRRP VIP .60 (mTLS); 8 VMs in one env:
+pwsh -File scripts\oltp.ps1 apply -Env oltp-patroni   # ~20-30 min
+pwsh -File scripts\oltp.ps1 smoke -Phase 0.G.4        # 152/152 ALL GREEN
+cd ..
 ```
 
-**Total wall-clock for a true cold rebuild of the whole 28-VM lab:** ~3 hours
-(dominated by Packer builds the first time; subsequent rebuilds reuse the
-templates and run in ~2 hours).
+**Total wall-clock for a true cold rebuild of the whole 50-VM lab:** ~5 hours
+(dominated by Packer builds the first time — 8 templates total including the 5
+per-engine OLTP templates; subsequent rebuilds reuse the templates and run in
+~3 hours). Per the per-cluster + per-engine canon, the 4 OLTP envs can be applied
+in parallel from separate shells if the host has the headroom.
 
 ## Where the per-tier deep canon lives
 
@@ -125,7 +179,10 @@ recovery playbooks). The **architectural** canon lives elsewhere:
   LDAPS · KV creds · Transit auto-unseal · Nomad-Vault · Portainer-NFS ·
   nftables/Docker conflict · TLS full-chain on the wire); ADRs 0020-0023 cover
   the Kafka tier (KRaft combined-mode · Kafka-tier mTLS · overlay
-  `depends_on` discipline · MM2 dedicated-mode).
+  `depends_on` discipline · MM2 dedicated-mode); ADR-0025 covers the OLTP-tier
+  HA rule that the HAProxy LB tier must mirror the cluster's HA promise (born
+  from 0.G.4's single-HAProxy SPOF flag, fixed pre-push to a 2-node HA pair
+  with VRRP VIP `.60`).
 - **VM inventory:** [`docs/infra/vms.yaml`](./infra/vms.yaml) — every VM the
   lab will eventually run, with hostnames, IPs, MAC reservations, OS, RAM/CPU
   ratification notes.
@@ -149,3 +206,10 @@ in each infra repo's `docs/handbook.md`:
   · §1.1-§1.6 walkthrough · §2 phase status · §3 runbooks (incl. §3.1
   cold-rebuild canon + §3.4 the Kafka-CLI-`sudo` rule + §3.7 apply-time VM-layer
   recovery).
+- **`nexus-infra-oltp/docs/handbook.md`** — per-cluster + per-engine canon (the
+  rule born from 0.G.3's 16-transient stall + canonized in 0.G.3.5). §0 prereqs
+  · §1 Redis · §2 MongoDB · §3 PXC+ProxySQL+VIP + Patroni+etcd+HAProxy+VIP
+  walkthroughs · §3.4 the 18-row 0.G.4 ratification chronology (PG 17 PGDG
+  bookworm fallback · Patroni 4 password_file/bootstrap.users quirks ·
+  HAProxy CAP_SYS_CHROOT + `default-server check` requirement · etc) ·
+  cumulative 45 transients across the 4 clusters.

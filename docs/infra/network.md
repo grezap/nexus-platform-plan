@@ -30,7 +30,7 @@ These are hard limits of the platform — not choices. They shape the canon.
 
 ## `nexus-gateway` — the lab edge router
 
-VMnet11 is Host-Only at the VMware layer. Internet egress for all 65 lab VMs is provided by a dedicated Linux router VM (`nexus-gateway`), which is **VM #0** of the fleet — built before any other lab VM so that apt/yum/apt pulls and Docker image fetches just work.
+VMnet11 is Host-Only at the VMware layer. Internet egress for all 50 currently-built lab VMs (53 planned once 0.G.7 SQL Server FCI+AG closes the OLTP tier) is provided by a dedicated Linux router VM (`nexus-gateway`), which is **VM #0** of the fleet — built before any other lab VM so that apt/yum/apt pulls and Docker image fetches just work.
 
 | Attribute | Value |
 |---|---|
@@ -100,7 +100,7 @@ VMnet10 third octet encodes cluster role so that IPs read as cluster identity:
 | 10.30.x | StarRocks | .31–.36 | .31–.36 |
 | 10.40.x | ClickHouse | .41–.49 | .41–.49 |
 | 10.50.x | Percona + ProxySQL | .50–.55 | .50 VIP · .51–.55 |
-| 10.60.x | PostgreSQL Patroni + etcd + HAProxy | .61–.67 | .61–.67 |
+| 10.60.x | PostgreSQL Patroni + etcd + HAProxy HA pair | .61–.68 (3 patroni · 3 etcd · 2 haproxy) | **VIP `.60` (VRRP)** · .61–.68 |
 | 10.70.x | MongoDB | .71–.73 | .71–.73 |
 | 10.80.x | Redis cluster · MM2 · REST Proxy | .81–.89 | .81–.89 |
 | 10.90.x | obs stack · Schema Registry · Connect · ksqlDB | .85–.98 | .85–.98 |
@@ -112,6 +112,17 @@ VMnet10 third octet encodes cluster role so that IPs read as cluster identity:
 | 10.10.150 | Windows workstations | .150 | .150 |
 
 Reserved on VMnet11: **`.1` = nexus-gateway**, **`.2`–`.9` = reserved for future edge appliances (pfSense standby, WireGuard bastion)**, **`.254` = host**.
+
+**Floating VRRP VIPs on VMnet11** (each LB tier mirrors its cluster's HA promise — see [ADR-0025](../adr/ADR-0025-ha-promise-covers-lb-tier.md)):
+
+| VIP | Owners (MASTER · BACKUP) | Service | Notes |
+|---|---|---|---|
+| `192.168.70.50` | `proxysql-1` (prio 110) · `proxysql-2` (prio 100) | OLTP — Percona XtraDB Cluster front door (MySQL :3306, ProxySQL admin :6032) | unicast VRRP; client connection string `mysql://...@192.168.70.50:3306/...` |
+| `192.168.70.60` | `haproxy-pg-1` (prio 110) · `haproxy-pg-2` (prio 100) | OLTP — Patroni PG HA front door (PG read-write :5000 → current Leader, PG read-only :5001 → replicas, stats :7000) | unicast VRRP; client connection string `postgresql://...@192.168.70.60:5000/...` (RW) or `:5001` (RO) |
+
+The VIPs are not DHCP reservations — they're owned by keepalived on the LB
+pair and float on failover. Pinging the VIP from anywhere on VMnet11 reaches
+whichever node is currently MASTER.
 
 Static-vs-DHCP policy: **all production VMs are static on both NICs.** DHCP on VMnet11 (served by `nexus-gateway`) is scoped to `.200–.250` and used only by Packer during template creation.
 
