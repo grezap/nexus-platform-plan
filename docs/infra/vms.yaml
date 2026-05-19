@@ -3,11 +3,12 @@
 # Source of truth for nexus-infra-vmware Terraform modules.
 
 metadata:
-  updated: 2026-05-07
-  vm_count: 67          # 65 lab VMs + nexus-gateway (VM #0) + vault-transit (Phase 0.D.5)
+  updated: 2026-05-20
+  vm_count: 67          # 65 lab VMs + nexus-gateway (VM #0) + vault-transit (Phase 0.D.5). 0.G.7 sqlserver cluster reused the canonical 4 nodes already present here.
   host: 10.0.70.101
   hypervisor: VMware Workstation Pro 17.5+
-  plan_version: v0.1.4
+  plan_version: v0.1.5
+  oltp_tier_status: SEALED 2026-05-20 (5/5 OLTP clusters scaffolded — redis + mongo + percona + patroni + sqlserver-fci-ag)
 
 networks:
   vmnet10:
@@ -69,17 +70,42 @@ clusters:
       - { name: obs-logging,  os: deb13,          vcpu: 2, ram_gb: 8,  disk_gb: 120, vmnet10: 192.168.10.94,  vmnet11: 192.168.70.94,  dir: H:\VMS\NexusPlatform\01-foundation\obs-logging,  role: "Seq + Vector" }
 
   sqlserver:
-    purpose: SQL Server FCI + AG
-    phase: 0.G / 1
+    purpose: SQL Server FCI + Always On AG (Phase 0.G.7 -- hybrid FCI+AG; FCI pair shares iSCSI LUN from nexus-gateway, AG replicas hold async copies)
+    phase: 0.G.7 (scaffolded 2026-05-20; ratification pending)
+    architecture: |
+      Hybrid FCI + AG (sealed with Greg 2026-05-20). sql-fci-1/2 form a
+      2-node WSFC Failover Cluster Instance sharing an iSCSI LUN (60 GB
+      sparse, exported by tgt on nexus-gateway per ADR-0026). The FCI
+      virtual server identity is `sql-fci-cluster` at .70.16; user DBs
+      live on the iSCSI CSV at S:\\.
+      sql-ag-rep-1/2 are standalone SQL instances holding async AG
+      replicas of the FCI's user DBs. WSFC quorum spans all 4 nodes
+      (node-majority, tolerates 1 failure).
+      The AG Listener (sql-ag-listener at .70.17) is the LB-tier HA
+      primitive per ADR-0025 -- SQL clients connect to .17, WSFC migrates
+      the IP atomically across AG primary failover. Listener cert IP-SAN
+      includes .17 so Encrypt=True;TrustServerCertificate=False validates
+      across failover.
+      SQL service identity = nexus.lab\\gmsa-sql-engine$ (GMSA; first
+      real GMSA consumer in the lab; 0.D.5 scaffolded the infrastructure).
+      AG endpoint authentication = certificate-based per ADR-0027.
     nodes:
-      - { name: sql-fci-1,     os: ws2025-desktop, vcpu: 4, ram_gb: 16, disk_gb: 200, vmnet10: 192.168.10.11, vmnet11: 192.168.70.11, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-fci-1,     role: "FCI node 1 (WSFC)" }
-      - { name: sql-fci-2,     os: ws2025-desktop, vcpu: 4, ram_gb: 16, disk_gb: 200, vmnet10: 192.168.10.12, vmnet11: 192.168.70.12, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-fci-2,     role: "FCI node 2 (WSFC)" }
-      - { name: sql-ag-rep-1,  os: ws2025-desktop, vcpu: 4, ram_gb: 12, disk_gb: 200, vmnet10: 192.168.10.13, vmnet11: 192.168.70.13, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-ag-rep-1,  role: "AG async replica 1" }
-      - { name: sql-ag-rep-2,  os: ws2025-desktop, vcpu: 4, ram_gb: 12, disk_gb: 200, vmnet10: 192.168.10.14, vmnet11: 192.168.70.14, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-ag-rep-2,  role: "AG async replica 2" }
+      - { name: sql-fci-1,     os: ws2025-desktop, vcpu: 4, ram_gb: 16, disk_gb: 200, vmnet10: 192.168.10.11, vmnet11: 192.168.70.11, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-fci-1,     role: "FCI node 1 (WSFC member; iSCSI initiator; sql-fci-cluster owner candidate)" }
+      - { name: sql-fci-2,     os: ws2025-desktop, vcpu: 4, ram_gb: 16, disk_gb: 200, vmnet10: 192.168.10.12, vmnet11: 192.168.70.12, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-fci-2,     role: "FCI node 2 (WSFC member; iSCSI initiator; sql-fci-cluster owner candidate)" }
+      - { name: sql-ag-rep-1,  os: ws2025-desktop, vcpu: 4, ram_gb: 12, disk_gb: 200, vmnet10: 192.168.10.13, vmnet11: 192.168.70.13, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-ag-rep-1,  role: "AG async replica 1 (WSFC member; local storage)" }
+      - { name: sql-ag-rep-2,  os: ws2025-desktop, vcpu: 4, ram_gb: 12, disk_gb: 200, vmnet10: 192.168.10.14, vmnet11: 192.168.70.14, dir: H:\VMS\NexusPlatform\02-sqlserver\sql-ag-rep-2,  role: "AG async replica 2 (WSFC member; local storage)" }
     virtual_ips:
-      wsfc: 192.168.70.15
-      fci: 192.168.70.16
-      ag_listener: 192.168.70.17
+      wsfc: 192.168.70.15            # WSFC cluster management IP (not a SQL endpoint; for Get-Cluster ops from anywhere on VMnet11)
+      fci: 192.168.70.16             # FCI virtual server IP; SQL clients targeting the FCI directly connect here; migrates between sql-fci-1/2 via WSFC role
+      ag_listener: 192.168.70.17     # AG Listener IP per ADR-0025 (the LB-tier HA primitive); SQL clients connect here; WSFC migrates with the AG primary across failover
+    shared_storage:
+      type: iSCSI
+      target: iqn.2026-05.local.nexus:sql-fci.lun1
+      backing: /srv/iscsi/sql-fci-shared.img (60 GB sparse on nexus-gateway)
+      lun_path_on_fci: S:\\ (formatted NTFS 64K, mounted as Cluster Shared Volume)
+      consumers: [sql-fci-1, sql-fci-2]   # only the FCI pair attaches; AG replicas use local storage
+      auth: CHAP (incoming-user sql-fci-initiator; secret in Vault KV at nexus/oltp/sqlserver/iscsi-chap-secret)
+      adr: ADR-0026
 
   # RAM ratification 2026-05-15 (Phase 0.H.6 close-out): all 15 03-kafka VMs
   # run at the kafka-node template's baked 8 GB. The lighter per-role intent

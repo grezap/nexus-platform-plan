@@ -33,6 +33,8 @@ Architecture Decision Records across the portfolio. Shared ADRs (0001–0010) ar
 | 0023 | [Phase 0.H.5: MirrorMaker 2 dedicated mode, one replication flow per node](./ADR-0023-mirrormaker2-dedicated-mode-one-flow-per-node.md) | accepted | 2026-05-15 |
 | 0024 | [Phase 0.G.0: AOT exit gate raised to ≤30 MB; cluster-adapter framework for the data-tier verb expansion](./ADR-0024-aot-gate-amendment-and-cluster-adapter-framework.md) | accepted | 2026-05-15 |
 | 0025 | [Phase 0.G.4: HA promise covers the load-balancer tier; LB SPOFs are first-class regressions](./ADR-0025-ha-promise-covers-lb-tier.md) | accepted | 2026-05-19 |
+| 0026 | [Phase 0.G.7: SQL FCI shared storage — iSCSI target on nexus-gateway](./ADR-0026-sql-fci-iscsi-shared-storage.md) | accepted | 2026-05-20 |
+| 0027 | [Phase 0.G.7: SQL AG endpoint authentication — certificate-based](./ADR-0027-sql-ag-endpoint-cert-auth.md) | accepted | 2026-05-20 |
 | 0144 | [Windows licensing posture — MSDN primary, Evaluation fallback](./ADR-0144-windows-licensing.md) | accepted | 2026-04-22 |
 
 ## Per-project ADRs

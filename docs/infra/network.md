@@ -30,7 +30,7 @@ These are hard limits of the platform — not choices. They shape the canon.
 
 ## `nexus-gateway` — the lab edge router
 
-VMnet11 is Host-Only at the VMware layer. Internet egress for all 50 currently-built lab VMs (53 planned once 0.G.7 SQL Server FCI+AG closes the OLTP tier) is provided by a dedicated Linux router VM (`nexus-gateway`), which is **VM #0** of the fleet — built before any other lab VM so that apt/yum/apt pulls and Docker image fetches just work.
+VMnet11 is Host-Only at the VMware layer. Internet egress for all 54 lab VMs (50 currently live + 4 SQL Server FCI+AG nodes scaffolded at Phase 0.G.7; OLTP tier sealed 2026-05-20 with all 5 OLTP clusters scaffolded) is provided by a dedicated Linux router VM (`nexus-gateway`), which is **VM #0** of the fleet — built before any other lab VM so that apt/yum/apt pulls and Docker image fetches just work. nexus-gateway also hosts an iSCSI target (tgt) serving the FCI shared LUN per ADR-0026, in addition to its existing NFSv4 export for Portainer.
 
 | Attribute | Value |
 |---|---|
@@ -119,10 +119,16 @@ Reserved on VMnet11: **`.1` = nexus-gateway**, **`.2`–`.9` = reserved for futu
 |---|---|---|---|
 | `192.168.70.50` | `proxysql-1` (prio 110) · `proxysql-2` (prio 100) | OLTP — Percona XtraDB Cluster front door (MySQL :3306, ProxySQL admin :6032) | unicast VRRP; client connection string `mysql://...@192.168.70.50:3306/...` |
 | `192.168.70.60` | `haproxy-pg-1` (prio 110) · `haproxy-pg-2` (prio 100) | OLTP — Patroni PG HA front door (PG read-write :5000 → current Leader, PG read-only :5001 → replicas, stats :7000) | unicast VRRP; client connection string `postgresql://...@192.168.70.60:5000/...` (RW) or `:5001` (RO) |
+| `192.168.70.15` | WSFC-managed (no priority; cluster-owned) | OLTP — WSFC cluster management IP for `sql-fci-cluster` (Phase 0.G.7) | NOT a SQL endpoint; `Get-Cluster`/`Get-ClusterNode` ops from anywhere on VMnet11 |
+| `192.168.70.16` | WSFC role `SQL Server (MSSQLSERVER)` (migrates between sql-fci-1/2) | OLTP — SQL Server FCI virtual server (Phase 0.G.7); SQL clients targeting the FCI directly | client connection string `sql-fci-cluster.nexus.lab,1433` or `192.168.70.16,1433`; cert IP-SAN includes .16 |
+| `192.168.70.17` | WSFC role `sql-ag-listener` (migrates with AG primary) | OLTP — AG Listener (Phase 0.G.7; the LB-tier HA primitive per ADR-0025) | client connection string `sql-ag-listener.nexus.lab,1433` or `192.168.70.17,1433`; cert IP-SAN includes .17 |
 
-The VIPs are not DHCP reservations — they're owned by keepalived on the LB
-pair and float on failover. Pinging the VIP from anywhere on VMnet11 reaches
-whichever node is currently MASTER.
+The VIPs are not DHCP reservations:
+- The keepalived VIPs (.50, .60) float between Linux LB pairs via unicast VRRP.
+- The SQL Server VIPs (.15, .16, .17) are owned by WSFC and migrate atomically with their respective cluster roles (cluster, FCI, AG). WSFC uses NetFT (Network Fault Tolerance) for heartbeats which works fine on VMware Host-Only networks (no L2 multicast needed for the broadcast heartbeats unlike VRRP multicast).
+
+Pinging any VIP from anywhere on VMnet11 reaches whichever node currently
+owns the role.
 
 Static-vs-DHCP policy: **all production VMs are static on both NICs.** DHCP on VMnet11 (served by `nexus-gateway`) is scoped to `.200–.250` and used only by Packer during template creation.
 

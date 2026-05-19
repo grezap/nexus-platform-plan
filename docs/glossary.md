@@ -293,6 +293,34 @@ A **self-hosted feature flag service**. Toggle features on/off per environment w
 **Syft** generates a Software Bill of Materials (SBOM) — a complete inventory of every package in a container image or binary. **CycloneDX** is a standard SBOM format. Together they answer "what's actually in this artifact?" — the question that became urgent industry-wide after the Log4Shell incident.
 *In NexusPlatform:* every release artifact ships with a CycloneDX SBOM produced by Syft.
 
+### WSFC (Windows Server Failover Clustering)
+The Windows-native clustering layer. Groups multiple Windows Server nodes into one logical cluster with shared resources, role failover, and quorum-based health. Provides the cluster heartbeat fabric (NetFT — Network Fault Tolerance), the role-migration primitives (move a resource from node A to B in seconds), and quorum (who's authoritative when nodes can't see each other).
+*In NexusPlatform:* `sql-fci-cluster` at Phase 0.G.7 spans all 4 SQL Server nodes; hosts the FCI virtual server role (.70.16) and the AG Listener role (.70.17). Quorum=NodeMajority (tolerates 1 failure).
+
+### FCI (SQL Server Failover Cluster Instance)
+A single SQL Server instance inside a WSFC cluster — only ONE node owns the SQL service at any moment; others are passive failover targets sharing the same data files via shared storage. Differs from AG: FCI = 1 instance + 1 set of data files; AG = N instances + N independent data files synced via replication.
+*In NexusPlatform:* sql-fci-1/2 form the FCI pair at Phase 0.G.7; share an iSCSI LUN per ADR-0026. On failover, the role + the .70.16 IP migrate atomically.
+
+### Always On Availability Group (AG)
+SQL Server's database-mirroring-evolved replication framework. 1 PRIMARY + N SECONDARY replicas, each an independent SQL instance. Transactions sync via TLS-encrypted HADR endpoint (port 5022). Sync replicas commit-block until acknowledged; async replicas lag but don't impact primary write latency.
+*In NexusPlatform:* AG `nexus-ag` at Phase 0.G.7. FCI as SYNCHRONOUS_COMMIT primary + sql-ag-rep-1/2 as ASYNCHRONOUS_COMMIT secondaries. Endpoint auth = certificate-based per ADR-0027.
+
+### AG Listener
+DNS name + IP that SQL clients connect to instead of a specific node. WSFC migrates the Listener IP atomically with the AG primary on failover, so client connection strings work across failovers. Per ADR-0025 the Listener IS the LB-tier HA primitive for AG (no separate HAProxy/keepalived needed).
+*In NexusPlatform:* `sql-ag-listener` at `.70.17`. Cert IP-SAN includes .17 so `Encrypt=True;TrustServerCertificate=False` validates across failover.
+
+### GMSA (Group Managed Service Account)
+AD-managed service account. AD stores + rotates the password (every 30 days by default, derived from the KDS root key); consuming servers retrieve it via `Install-ADServiceAccount`. Operator never sees the password; never in config; never in KV. Lateral-movement attacker gets a 30-day-bounded credential, not a static one.
+*In NexusPlatform:* `gmsa-sql-engine$` at Phase 0.G.7 — first real GMSA consumer (0.D.5 scaffolded the infrastructure). SQL Server service identity on all 4 nodes. Per `memory/feedback_kds_rootkey_server2025_ssh.md`, KDS root key must be added via RDP on Server 2025 (broken over SSH).
+
+### iSCSI Target / iSCSI Initiator
+iSCSI = "SCSI over TCP" — block-storage protocol exposing a server's local disk as a LUN reachable over the network. **Target** = server (tgt on Linux); **Initiator** = client mounting the LUN as if it were a local SCSI disk.
+*In NexusPlatform:* `nexus-gateway` runs tgt at Phase 0.G.7 (per ADR-0026), exporting one LUN to the FCI pair only. CHAP-authed + per-IP ACL. Enables SQL Server FCI on VMware Workstation Pro (which has no native shared-disk primitive).
+
+### sqlcmd
+SQL Server's canonical command-line client. Reads + executes T-SQL. Trivially scriptable from PowerShell + bash. Auth via Windows (`-E`), SQL (`-U user -P pwd`), or token. Per ADR-0024 the canonical operator surface for SQL clusters — no `Microsoft.Data.SqlClient` linked into nexus-cli's AOT binary.
+*In NexusPlatform:* operator probes: `sqlcmd -E -S sql-ag-listener,1433 -Q "SELECT @@SERVERNAME"`. Smoke gate Section 12 + the nexus-cli SqlAgAdapter both shell out to sqlcmd over SSH.
+
 ---
 
 ## What's missing and coming later
