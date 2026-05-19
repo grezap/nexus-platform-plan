@@ -160,7 +160,7 @@ clusters:
       proxysql_vip: 192.168.70.50
 
   postgres:
-    purpose: PostgreSQL Patroni + etcd + HAProxy
+    purpose: PostgreSQL Patroni + etcd + HAProxy HA pair (8 nodes)
     phase: 0.G
     nodes:
       - { name: pg-primary,   os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.61, vmnet11: 192.168.70.61, dir: H:\VMS\NexusPlatform\05-oltp\pg-primary,   role: "Patroni leader" }
@@ -169,7 +169,10 @@ clusters:
       - { name: etcd-1,       os: deb13, vcpu: 1, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.64, vmnet11: 192.168.70.64, dir: H:\VMS\NexusPlatform\05-oltp\etcd-1,       role: "etcd member" }
       - { name: etcd-2,       os: deb13, vcpu: 1, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.65, vmnet11: 192.168.70.65, dir: H:\VMS\NexusPlatform\05-oltp\etcd-2,       role: "etcd member" }
       - { name: etcd-3,       os: deb13, vcpu: 1, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.66, vmnet11: 192.168.70.66, dir: H:\VMS\NexusPlatform\05-oltp\etcd-3,       role: "etcd member" }
-      - { name: haproxy-pg,   os: deb13, vcpu: 1, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.67, vmnet11: 192.168.70.67, dir: H:\VMS\NexusPlatform\05-oltp\haproxy-pg,   role: "HAProxy Patroni REST + 5432" }
+      - { name: haproxy-pg-1, os: deb13, vcpu: 1, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.67, vmnet11: 192.168.70.67, dir: H:\VMS\NexusPlatform\05-oltp\haproxy-pg-1, role: "HAProxy LB (keepalived MASTER candidate for VIP .60)" }
+      - { name: haproxy-pg-2, os: deb13, vcpu: 1, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.68, vmnet11: 192.168.70.68, dir: H:\VMS\NexusPlatform\05-oltp\haproxy-pg-2, role: "HAProxy LB (keepalived BACKUP for VIP .60)" }
+    virtual_ips:
+      haproxy_pg_vip: 192.168.70.60
 
   mongo:
     purpose: MongoDB 3-node replica set

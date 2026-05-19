@@ -123,8 +123,16 @@ General-purpose **relational database**. SQL-compliant, ACID transactions, stron
 *In NexusPlatform:* the workhorse OLTP database for several app projects (`localmind` event store, `querylens`, others).
 
 ### Patroni
-A **high-availability orchestrator for PostgreSQL**. Watches a Postgres primary; promotes a standby replica if the primary fails; uses Consul or etcd for distributed leader election so split-brain doesn't happen.
-*In NexusPlatform:* a 3-node Patroni cluster ensures Postgres survives a single-node failure with automatic, no-touch failover.
+A **high-availability orchestrator for PostgreSQL**. Watches a Postgres primary; promotes a standby replica if the primary fails; uses a Distributed Configuration Store (DCS — etcd, Consul, or ZooKeeper) to elect the leader so split-brain can't happen. Runs as a long-lived Python supervisor process that owns PG's lifecycle (initdb, start, stop, promote, demote, pg_rewind), exposes a REST API (default :8008) for operator switchover/restart/reinitialize + LB health probes (`GET /leader` returns 200 only on the leader; 503 on replicas), and ships `patronictl` for cluster ops.
+*In NexusPlatform:* a 3-node Patroni 4.0.5 cluster orchestrates PG 17 streaming replication; 3 etcd nodes hold the DCS at `/service/nexus-pg/`; HAProxy routes apps to the current leader via REST :8008 health probes. mTLS-only on :5432/:8008 via per-host Vault PKI; per-host `patroni.yml` rendered by the `oltp-patroni` Terraform overlay; operator wrapper `/usr/local/sbin/nexus-patronictl` pre-points patronictl at our config dir.
+
+### etcd
+A **Raft-replicated key-value store** designed as the metadata backbone for distributed systems (Kubernetes, Patroni, CoreDNS, ...). Strong consistency via the Raft consensus algorithm; survives `floor((N-1)/2)` member loss (3-member quorum tolerates 1; 5-member tolerates 2). HTTP+gRPC API; supports TLS for both client and peer connections + HTTP basic-auth or X.509-CN-based RBAC.
+*In NexusPlatform:* a 3-node etcd 3.5.16 cluster (from upstream GitHub release tarballs) provides Patroni's DCS for cluster `nexus-pg`. Client API on :2379 (Patroni dials here); peer Raft on :2380 (ride VMnet10 backplane). TLS for wire encryption; HTTP basic-auth (root user, KV-seeded 32-char hex password) for RBAC. Operator wrapper `/usr/local/sbin/nexus-etcdctl` pre-loads endpoints + TLS material so `nexus-etcdctl endpoint status --cluster` works without operator typing.
+
+### HAProxy
+A **TCP/HTTP load balancer + reverse proxy**, the de-facto open-source LB for performance-sensitive backends. Active+passive health probes (TCP, HTTP, agent-check), per-backend routing rules, sticky sessions, request rewriting, and a real-time stats UI. Hot-reload via `-Ws` + SIGUSR2 (zero-downtime config reloads).
+*In NexusPlatform:* a 2-node HA pair `haproxy-pg-1` + `haproxy-pg-2` fronts the 3-node Patroni cluster (mirrors the 0.G.3 proxysql-1/2 pattern). Both nodes run identical config; frontend `:5432` → `backend pg_pool` using `option httpchk GET /leader` against Patroni REST :8008 (200 only on leader; 503 on replicas/paused; HAProxy auto-routes to whichever backend returns 200). Stats UI on :8404 with HTTP basic-auth from KV-seeded `haproxy-stats-password`. **VRRP-floated VIP `192.168.70.60`** between the two nodes via `keepalived` (priority 110 MASTER + priority 100 BACKUP, **unicast mode** — VMware VMnet11 doesn't reliably forward IPv4 multicast `224.0.0.18`, lesson baked at 0.G.3.5c chunk 1 transient #22). Apps connect to `<VIP>:5432`; the cert IP-SANs on both haproxy nodes include the VIP so client TLS handshakes validate regardless of which node currently holds it.
 
 ### SQL Server (Microsoft)
 Microsoft's **enterprise relational database**. Industry-standard in .NET shops; fully featured (T-SQL, columnstore, in-memory OLTP, native JSON). The lab exercises both classic HA modes:
@@ -148,7 +156,7 @@ A **MySQL-protocol-aware connection pooler + load balancer**. Sits between apps 
 
 ### keepalived (VRRP)
 A **Linux daemon implementing VRRPv3** (Virtual Router Redundancy Protocol). Floats a virtual IP between cluster nodes by priority; the highest-priority healthy node holds the VIP. Health-script-driven priority demotion + preemption.
-*In NexusPlatform:* 2 ProxySQL nodes share a VIP (`.50`) so apps connect to a single address regardless of which ProxySQL is MASTER. **Unicast mode** (`unicast_src_ip` + `unicast_peer`) — VMware Workstation's virtual networks (e.g., VMnet11) don't reliably forward IPv4 multicast `224.0.0.18`, so multicast VRRP causes split-brain. Lesson canonicalized at 0.G.3.5c chunk 1 ratification.
+*In NexusPlatform:* used in two LB tiers — 2 ProxySQL nodes share VIP `.50` (0.G.3) and 2 HAProxy nodes share VIP `.60` (0.G.4). Both use **unicast mode** (`unicast_src_ip` + `unicast_peer`) — VMware Workstation's virtual networks (e.g., VMnet11) don't reliably forward IPv4 multicast `224.0.0.18`, so multicast VRRP causes split-brain. Lesson canonicalized at 0.G.3.5c chunk 1 ratification, applied uniformly to 0.G.4. Health-script wraps a simple `pgrep` (proxysql / haproxy) so a daemon crash demotes the node within one VRRP advertisement interval.
 
 ### MongoDB
 A **document database**. Stores JSON-shaped records ("documents") with a flexible schema. Horizontal scaling via sharding, HA via replica sets.
