@@ -130,6 +130,18 @@ The VIPs are not DHCP reservations:
 Pinging any VIP from anywhere on VMnet11 reaches whichever node currently
 owns the role.
 
+**Analytics tier (ClickHouse 0.G.5 + StarRocks 0.G.6) has NO VIP — by design.**
+Both engines are natively any-node-addressable (ClickHouse `Distributed` reads/writes
+from any of the 6 data nodes; StarRocks accepts MySQL-protocol queries on any of the
+3 FE, with Followers forwarding DDL to the Leader), so there is no single fixed
+endpoint that would be a SPOF without a VIP. The stable client endpoint is delivered
+by **round-robin DNS** (multi-A `host-record`, the same mechanism as `portainer.nexus.lab`)
+rather than a VRRP VIP + LB pair. This is the documented "client-side multi-endpoint"
+branch of [ADR-0025](../adr/ADR-0025-ha-promise-covers-lb-tier.md), resolved for the
+analytics tier in [ADR-0031](../adr/ADR-0031-analytics-client-front-door-round-robin-dns.md).
+The analytics clusters carry no `virtual_ips:` block in `vms.yaml`, and that absence
+is intentional.
+
 Static-vs-DHCP policy: **all production VMs are static on both NICs.** DHCP on VMnet11 (served by `nexus-gateway`) is scoped to `.200–.250` and used only by Packer during template creation.
 
 Complete VM → IP map lives in [`vms.yaml`](./vms.yaml).
@@ -140,6 +152,25 @@ Complete VM → IP map lives in [`vms.yaml`](./vms.yaml).
 - `dc-nexus` (192.168.70.10) runs Active Directory DNS once built. Windows VMs join AD domain `nexus.local`.
 - Linux VMs use `nexus-gateway` (192.168.70.1) as primary resolver.
 - Service names (e.g. `obs-metrics.nexus.local`, `sql-ag-listener.nexus.local`) resolve host-wide from the workstation by adding `192.168.70.1` as a secondary DNS on `VMware Network Adapter VMnet11`.
+- **Round-robin (multi-A) `host-record` entries** on `nexus-gateway`'s dnsmasq give cluster front doors a single stable name resolving to all member nodes (resolvers rotate; the engines' native multi-host clients retry the next on failure):
+  - `portainer.nexus.lab` → swarm managers `.111`–`.113` (Phase 0.E.4c)
+  - `clickhouse.nexus.lab` → ClickHouse data nodes `.44`–`.49` (Phase 0.G.5; the 6 shard-replica nodes — every one is an equal `Distributed`-table entry point)
+  - `starrocks-fe.nexus.lab` → StarRocks FE `.31`–`.33` (Phase 0.G.6; MySQL protocol `:9030`, HTTP `:8030` — any FE serves queries + forwards DDL to the Leader)
+
+### Analytics-tier MAC reservations (VMnet11 dhcp-host)
+
+The 15 analytics nodes get static-pinned VMnet11 IPs via dnsmasq `dhcp-host` reservations on `nexus-gateway` (the contiguous MAC block after the OLTP tier, which ends at `:89`). Secondary NICs (VMnet10 backplane) use the same sixth byte with fifth byte `01` and are statically assigned by firstboot (no DHCP). Primary MAC plan (`00:50:56:3F:00:XX`):
+
+| Node | VMnet11 | Primary MAC `…:00:` | Node | VMnet11 | Primary MAC `…:00:` |
+|---|---|---|---|---|---|
+| ch-keeper-1 | .41 | `8A` | ch-shard3-rep1 | .48 | `91` |
+| ch-keeper-2 | .42 | `8B` | ch-shard3-rep2 | .49 | `92` |
+| ch-keeper-3 | .43 | `8C` | sr-fe-leader | .31 | `93` |
+| ch-shard1-rep1 | .44 | `8D` | sr-fe-follower-1 | .32 | `94` |
+| ch-shard1-rep2 | .45 | `8E` | sr-fe-follower-2 | .33 | `95` |
+| ch-shard2-rep1 | .46 | `8F` | sr-be-1 | .34 | `96` |
+| ch-shard2-rep2 | .47 | `90` | sr-be-2 | .35 | `97` |
+|  |  |  | sr-be-3 | .36 | `98` |
 
 ## Firewall posture
 

@@ -35,6 +35,11 @@ Architecture Decision Records across the portfolio. Shared ADRs (0001–0010) ar
 | 0025 | [Phase 0.G.4: HA promise covers the load-balancer tier; LB SPOFs are first-class regressions](./ADR-0025-ha-promise-covers-lb-tier.md) | accepted | 2026-05-19 |
 | 0026 | [Phase 0.G.7: SQL FCI shared storage — iSCSI target on nexus-gateway](./ADR-0026-sql-fci-iscsi-shared-storage.md) | accepted | 2026-05-20 |
 | 0027 | [Phase 0.G.7: SQL AG endpoint authentication — certificate-based](./ADR-0027-sql-ag-endpoint-cert-auth.md) | accepted | 2026-05-20 |
+| 0028 | [Phase 0.G.5: ClickHouse Keeper, not ZooKeeper, for replication coordination](./ADR-0028-clickhouse-keeper-not-zookeeper.md) | accepted | 2026-05-22 |
+| 0029 | [Phase 0.G.5: ClickHouse topology — 3 shards × 2 replicas, Distributed over ReplicatedMergeTree](./ADR-0029-clickhouse-shard-replica-topology.md) | accepted | 2026-05-22 |
+| 0030 | [Phase 0.G.6: StarRocks topology — FE quorum (BDB-JE) + BE tablet sharding/replication](./ADR-0030-starrocks-fe-quorum-be-tablet-sharding.md) | accepted | 2026-05-22 |
+| 0031 | [Phase 0.G.5/0.G.6: Analytics client front door — round-robin DNS, no VRRP VIP (resolves ADR-0025's analytics open questions)](./ADR-0031-analytics-client-front-door-round-robin-dns.md) | accepted | 2026-05-22 |
+| 0032 | [Phase 0.G.5/0.G.6: Analytics backup repository — NFS export from nexus-gateway (MinIO deferred to 0.L)](./ADR-0032-analytics-backup-repository-nfs-gateway.md) | accepted | 2026-05-22 |
 | 0144 | [Windows licensing posture — MSDN primary, Evaluation fallback](./ADR-0144-windows-licensing.md) | accepted | 2026-04-22 |
 
 ## Per-project ADRs

@@ -151,29 +151,54 @@ clusters:
       - { name: kafka-rest-1,    os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 30, vmnet10: 192.168.10.88, vmnet11: 192.168.70.88, dir: H:\VMS\NexusPlatform\03-kafka\kafka-rest-1, role: "REST Proxy" }
 
   starrocks:
-    purpose: StarRocks FE + BE cluster
-    phase: 0.G
+    purpose: StarRocks FE + BE cluster (Phase 0.G.6 -- 3 FE BDB-JE quorum [1 leader + 2 follower] + 3 BE; tablets DISTRIBUTED BY HASH BUCKETS n + replication_num=3 across all 3 BE; ADR-0030)
+    phase: 0.G.6
+    # Client front door = round-robin DNS `starrocks-fe.nexus.lab` (multi-A over the
+    # 3 FE) -- NO VRRP VIP / no LB pair. StarRocks FE is any-node-addressable on the
+    # MySQL protocol (Followers forward DDL to the Leader), so there is no fixed
+    # endpoint that would be a SPOF without a VIP. Documented in ADR-0031 (resolves
+    # ADR-0025's analytics open question). No `virtual_ips:` block here is intentional.
+    #
+    # ram_gb deviations (per feedback_prefer_less_memory.md; logged 2026-05-22 at
+    # 0.G.6 scaffold). Build host = 256 GB; right-sized so CH (0.G.5) + foundation,
+    # then SR (0.G.6) + foundation, each run with wide headroom while the sequential
+    # build keeps only one analytics cluster powered at a time (feedback_minimal_
+    # running_vms.md). Production sizing reverts to the original 8 GB FE / 16 GB BE.
+    #   FE  8 GB -> 4 GB  (Java FE heap; comfortable at lab metadata + query scale)
+    #   BE 16 GB -> 6 GB  (BE scan/agg working set fits at lab data volumes)
     nodes:
-      - { name: sr-fe-leader,     os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 60,  vmnet10: 192.168.10.31, vmnet11: 192.168.70.31, dir: H:\VMS\NexusPlatform\04-analytics\sr-fe-leader,     role: "FE leader" }
-      - { name: sr-fe-follower-1, os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 60,  vmnet10: 192.168.10.32, vmnet11: 192.168.70.32, dir: H:\VMS\NexusPlatform\04-analytics\sr-fe-follower-1, role: "FE follower" }
-      - { name: sr-fe-follower-2, os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 60,  vmnet10: 192.168.10.33, vmnet11: 192.168.70.33, dir: H:\VMS\NexusPlatform\04-analytics\sr-fe-follower-2, role: "FE follower" }
-      - { name: sr-be-1,          os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.34, vmnet11: 192.168.70.34, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-1,          role: "BE node 1" }
-      - { name: sr-be-2,          os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.35, vmnet11: 192.168.70.35, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-2,          role: "BE node 2" }
-      - { name: sr-be-3,          os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.36, vmnet11: 192.168.70.36, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-3,          role: "BE node 3" }
+      - { name: sr-fe-leader,     os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 60,  vmnet10: 192.168.10.31, vmnet11: 192.168.70.31, dir: H:\VMS\NexusPlatform\04-analytics\sr-fe-leader,     role: "FE leader (bootstrap; election dynamic)" }
+      - { name: sr-fe-follower-1, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 60,  vmnet10: 192.168.10.32, vmnet11: 192.168.70.32, dir: H:\VMS\NexusPlatform\04-analytics\sr-fe-follower-1, role: "FE follower" }
+      - { name: sr-fe-follower-2, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 60,  vmnet10: 192.168.10.33, vmnet11: 192.168.70.33, dir: H:\VMS\NexusPlatform\04-analytics\sr-fe-follower-2, role: "FE follower" }
+      - { name: sr-be-1,          os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 300, vmnet10: 192.168.10.34, vmnet11: 192.168.70.34, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-1,          role: "BE node 1" }
+      - { name: sr-be-2,          os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 300, vmnet10: 192.168.10.35, vmnet11: 192.168.70.35, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-2,          role: "BE node 2" }
+      - { name: sr-be-3,          os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 300, vmnet10: 192.168.10.36, vmnet11: 192.168.70.36, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-3,          role: "BE node 3" }
 
   clickhouse:
-    purpose: ClickHouse 3 shards × 2 replicas with Keeper quorum
-    phase: 0.G
+    purpose: ClickHouse 3 shards x 2 replicas with Keeper quorum (Phase 0.G.5 -- Distributed over ReplicatedMergeTree; 3-node ClickHouse Keeper RAFT quorum [NOT ZooKeeper]; ADR-0028/0029)
+    phase: 0.G.5
+    # Client front door = round-robin DNS `clickhouse.nexus.lab` (multi-A over the 6
+    # shard-replica nodes) -- NO VRRP VIP / no LB pair. Every data node is an equal
+    # entry point to the Distributed table, so there is no fixed endpoint that would
+    # be a SPOF without a VIP. Documented in ADR-0031. No `virtual_ips:` block here
+    # is intentional. Coordination = ClickHouse Keeper (engine-native C++ RAFT, no
+    # JVM); the lab has zero ZooKeeper VMs (ADR-0028, mirrors Kafka's KRaft choice).
+    #
+    # ram_gb deviations (per feedback_prefer_less_memory.md; logged 2026-05-22 at
+    # 0.G.5 scaffold). Production sizing reverts to 4 GB keeper / 16 GB data node.
+    #   Keeper      4 GB -> 2 GB  (C++ RAFT coordinator; tiny footprint, no JVM)
+    #   shard-rep  16 GB -> 6 GB  (ReplicatedMergeTree merge + mark cache fit at
+    #                              lab data volumes; mark_cache_size tuned in config)
     nodes:
-      - { name: ch-keeper-1,    os: deb13, vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet10: 192.168.10.41, vmnet11: 192.168.70.41, dir: H:\VMS\NexusPlatform\04-analytics\ch-keeper-1,    role: "ClickHouse Keeper" }
-      - { name: ch-keeper-2,    os: deb13, vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet10: 192.168.10.42, vmnet11: 192.168.70.42, dir: H:\VMS\NexusPlatform\04-analytics\ch-keeper-2,    role: "ClickHouse Keeper" }
-      - { name: ch-keeper-3,    os: deb13, vcpu: 2, ram_gb: 4,  disk_gb: 40,  vmnet10: 192.168.10.43, vmnet11: 192.168.70.43, dir: H:\VMS\NexusPlatform\04-analytics\ch-keeper-3,    role: "ClickHouse Keeper" }
-      - { name: ch-shard1-rep1, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.44, vmnet11: 192.168.70.44, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard1-rep1, role: "shard1 replica1" }
-      - { name: ch-shard1-rep2, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.45, vmnet11: 192.168.70.45, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard1-rep2, role: "shard1 replica2" }
-      - { name: ch-shard2-rep1, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.46, vmnet11: 192.168.70.46, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard2-rep1, role: "shard2 replica1" }
-      - { name: ch-shard2-rep2, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.47, vmnet11: 192.168.70.47, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard2-rep2, role: "shard2 replica2" }
-      - { name: ch-shard3-rep1, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.48, vmnet11: 192.168.70.48, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard3-rep1, role: "shard3 replica1" }
-      - { name: ch-shard3-rep2, os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 300, vmnet10: 192.168.10.49, vmnet11: 192.168.70.49, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard3-rep2, role: "shard3 replica2" }
+      - { name: ch-keeper-1,    os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.41, vmnet11: 192.168.70.41, dir: H:\VMS\NexusPlatform\04-analytics\ch-keeper-1,    role: "ClickHouse Keeper (RAFT quorum)" }
+      - { name: ch-keeper-2,    os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.42, vmnet11: 192.168.70.42, dir: H:\VMS\NexusPlatform\04-analytics\ch-keeper-2,    role: "ClickHouse Keeper (RAFT quorum)" }
+      - { name: ch-keeper-3,    os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.43, vmnet11: 192.168.70.43, dir: H:\VMS\NexusPlatform\04-analytics\ch-keeper-3,    role: "ClickHouse Keeper (RAFT quorum)" }
+      - { name: ch-shard1-rep1, os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 300, vmnet10: 192.168.10.44, vmnet11: 192.168.70.44, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard1-rep1, role: "shard1 replica1" }
+      - { name: ch-shard1-rep2, os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 300, vmnet10: 192.168.10.45, vmnet11: 192.168.70.45, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard1-rep2, role: "shard1 replica2" }
+      - { name: ch-shard2-rep1, os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 300, vmnet10: 192.168.10.46, vmnet11: 192.168.70.46, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard2-rep1, role: "shard2 replica1" }
+      - { name: ch-shard2-rep2, os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 300, vmnet10: 192.168.10.47, vmnet11: 192.168.70.47, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard2-rep2, role: "shard2 replica2" }
+      - { name: ch-shard3-rep1, os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 300, vmnet10: 192.168.10.48, vmnet11: 192.168.70.48, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard3-rep1, role: "shard3 replica1" }
+      - { name: ch-shard3-rep2, os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 300, vmnet10: 192.168.10.49, vmnet11: 192.168.70.49, dir: H:\VMS\NexusPlatform\04-analytics\ch-shard3-rep2, role: "shard3 replica2" }
 
   percona:
     purpose: Percona XtraDB Cluster with ProxySQL

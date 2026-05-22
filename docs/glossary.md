@@ -167,16 +167,36 @@ A **document database**. Stores JSON-shaped records ("documents") with a flexibl
 *In NexusPlatform:* 3 shards × 2 replicas. Powers the `localmind` RAG cache and `tenantcore` session store.
 
 ### ClickHouse
-A **columnar OLAP database**. Built for scanning billions of rows quickly with aggregations and analytical queries. Not for OLTP, not for join-heavy workloads, but staggeringly fast for analytical scans.
-*In NexusPlatform:* powers the analytics half of `dataflow-studio` and `chronosight` time-series queries.
+A **columnar OLAP database**. Built for scanning billions of rows quickly with aggregations and analytical queries. Not for OLTP, not for join-heavy workloads, but staggeringly fast for analytical scans. Scales horizontally by **sharding** (split data across nodes) and tolerates failure by **replication** (copy each shard to ≥2 nodes).
+*In NexusPlatform:* Phase 0.G.5 — a genuine **3 shards × 2 replicas** cluster (6 data nodes) coordinated by a 3-node ClickHouse Keeper quorum. Powers the analytics half of `dataflow-studio`, `chronosight` time-series queries, `pulsenlp` token analytics, and `streamcore` aggregates.
 
 ### ClickHouse Keeper
-A **Raft-based coordination service** that replaces ZooKeeper for ClickHouse cluster metadata. Removes one external dependency; keeps the same protocol.
-*In NexusPlatform:* a 3-node Keeper quorum coordinates the ClickHouse shards.
+A **Raft-based coordination service** ClickHouse ships as a C++ replacement for Apache ZooKeeper. It speaks the ZooKeeper wire protocol (so `clickhouse-server` config is unchanged) but uses ClickHouse's own RAFT implementation — no JVM, lower memory, vendor-recommended for all new clusters. It holds the replication log, replica registry, and `ON CLUSTER` DDL coordination state.
+*In NexusPlatform:* a **dedicated 3-node Keeper RAFT quorum** (`ch-keeper-1/2/3`) coordinates the 6 ClickHouse data nodes (Phase 0.G.5, [ADR-0028](adr/ADR-0028-clickhouse-keeper-not-zookeeper.md)). The lab runs **zero ZooKeeper VMs** anywhere — the same "drop the legacy JVM coordinator" call Kafka made with KRaft.
+
+### ReplicatedMergeTree
+ClickHouse's **replicated table engine family**. A `ReplicatedMergeTree` table's data is automatically copied to every replica of its shard, coordinated through Keeper — insert on one replica, read it from another. The `Replicated*` prefix is what turns a single-node MergeTree table into a fault-tolerant replicated one.
+*In NexusPlatform:* every analytics local table is a `ReplicatedMergeTree`; the per-node `{shard}`/`{replica}` macros let one `CREATE TABLE ... ON CLUSTER` statement give each node the right identity (Phase 0.G.5, [ADR-0029](adr/ADR-0029-clickhouse-shard-replica-topology.md)).
+
+### Distributed (ClickHouse table engine)
+ClickHouse's **sharding front for queries**. A `Distributed` table holds no data itself; it fans a query/insert out across the shards listed in `remote_servers` (scatter), merges the partial results (gather), and presents them as one table. Clients read/write the `Distributed` table from any node.
+*In NexusPlatform:* the `nexus_analytics` cluster (3 shards × 2 replicas) is fronted by `Distributed` tables; `internal_replication=true` lets each shard's `ReplicatedMergeTree` (not the Distributed table) handle the replica copy, the correct anti-double-write setting.
+
+### Shard / Replica
+**Shard** = a horizontal slice of a dataset living on a distinct node (more shards = more storage + more parallel scan). **Replica** = a redundant copy of a shard on another node (lose a node, the shard stays available). Sharding is about *scale*; replication is about *availability* — orthogonal, and a "no toy database" cluster has both.
+*In NexusPlatform:* every clustered store proves both axes in its smoke gate — Redis (3 shards × 2 replicas), ClickHouse (3 shards × 2 replicas), Kafka (partitions × RF=3), StarRocks (tablets × `replication_num=3`). Pure replication (no sharding) is called out as such — Mongo RS, Percona/Galera, Patroni — with sharding for those engines added later as dedicated phases (0.N Mongo, 0.O Vitess, 0.P Citus).
 
 ### StarRocks
-A **real-time analytical database** with a separated frontend (FE) + backend (BE) architecture. Joins-friendly OLAP — bridges the gap between OLTP and ClickHouse-style scans.
-*In NexusPlatform:* `dataflow-studio`'s interactive analytics layer.
+A **real-time analytical (MPP) database** with a separated **frontend (FE)** + **backend (BE)** architecture and a MySQL-compatible wire protocol. Joins-friendly OLAP — bridges the gap between OLTP and ClickHouse-style scans; strong at high-concurrency BI and real-time updates.
+*In NexusPlatform:* Phase 0.G.6 — a genuine **3 FE (BDB-JE quorum) + 3 BE** cluster; tables `DISTRIBUTED BY HASH(...) BUCKETS n` with `replication_num=3` so tablets are sharded + replicated across all 3 BE. Powers `dataflow-studio`'s interactive BI layer, `chronosight` forecast serving, and `fieldsync` analytics ([ADR-0030](adr/ADR-0030-starrocks-fe-quorum-be-tablet-sharding.md)).
+
+### FE / BE (StarRocks Frontend / Backend)
+**FE (Frontend)** = StarRocks's Java metadata + query-coordination plane. FE nodes form a replicated quorum via embedded Berkeley DB Java Edition (BDB-JE), electing one **Leader** (owns metadata writes/DDL) with the rest as **Followers** (replicate metadata, serve reads, forward DDL). **BE (Backend)** = the C++ storage + compute plane that holds tablets and does the actual scan/aggregate/join work; the FE Leader schedules tablet placement and re-replicates on BE loss.
+*In NexusPlatform:* 1 Leader + 2 Followers (majority quorum, survives one FE loss + re-elects) + 3 BE; clients connect to any FE via round-robin DNS `starrocks-fe.nexus.lab` on MySQL `:9030` (Phase 0.G.6).
+
+### Tablet (StarRocks)
+The **unit of data sharding + replication in StarRocks**. A table is hash-distributed into `BUCKETS n` tablets; each tablet is copied `replication_num` times across the BE nodes. Tablets are what the FE scheduler places, balances, and re-replicates — the StarRocks analogue of a ClickHouse shard-replica or a Kafka partition-replica.
+*In NexusPlatform:* demo + showcase tables use `BUCKETS ≥ 3` × `replication_num = 3` so every BE holds tablets and no single BE loss makes any tablet unavailable; the smoke gate proves tablet distribution across all 3 BE via `SHOW TABLET`.
 
 ### MinIO
 **S3-compatible object store**, self-hosted. Same API as Amazon S3, so any S3 client works against it unchanged.
