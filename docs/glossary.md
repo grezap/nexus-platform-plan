@@ -311,7 +311,7 @@ DNS name + IP that SQL clients connect to instead of a specific node. WSFC migra
 
 ### GMSA (Group Managed Service Account)
 AD-managed service account. AD stores + rotates the password (every 30 days by default, derived from the KDS root key); consuming servers retrieve it via `Install-ADServiceAccount`. Operator never sees the password; never in config; never in KV. Lateral-movement attacker gets a 30-day-bounded credential, not a static one.
-*In NexusPlatform:* `gmsa-sql-engine$` at Phase 0.G.7 — first real GMSA consumer (0.D.5 scaffolded the infrastructure). SQL Server service identity on all 4 nodes. Per `memory/feedback_kds_rootkey_server2025_ssh.md`, KDS root key must be added via RDP on Server 2025 (broken over SSH).
+*In NexusPlatform:* `gmsa-sql-engine$` at Phase 0.G.7 — first real GMSA consumer (0.D.5 scaffolded the infrastructure). SQL Server service identity on the **2 FCI nodes** (a cluster-shared identity is what an FCI needs); the standalone AG replicas run as `NT AUTHORITY\NETWORK SERVICE` (AG endpoints authenticate via certificate per ADR-0027, so a gmsa there buys nothing). Only the FCI computer accounts are in `nexus-sql-cluster-members` (PrincipalsAllowedToRetrieveManagedPassword). Per `memory/feedback_kds_rootkey_server2025_ssh.md`, KDS root key must be added via RDP on Server 2025 (broken over SSH).
 
 ### iSCSI Target / iSCSI Initiator
 iSCSI = "SCSI over TCP" — block-storage protocol exposing a server's local disk as a LUN reachable over the network. **Target** = server (tgt on Linux); **Initiator** = client mounting the LUN as if it were a local SCSI disk.

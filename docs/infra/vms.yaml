@@ -3,12 +3,12 @@
 # Source of truth for nexus-infra-vmware Terraform modules.
 
 metadata:
-  updated: 2026-05-20
+  updated: 2026-05-22
   vm_count: 67          # 65 lab VMs + nexus-gateway (VM #0) + vault-transit (Phase 0.D.5). 0.G.7 sqlserver cluster reused the canonical 4 nodes already present here.
   host: 10.0.70.101
   hypervisor: VMware Workstation Pro 17.5+
   plan_version: v0.1.5
-  oltp_tier_status: SEALED 2026-05-20 (5/5 OLTP clusters scaffolded — redis + mongo + percona + patroni + sqlserver-fci-ag)
+  oltp_tier_status: SEALED 2026-05-22 (5/5 OLTP clusters LIVE — redis + mongo + percona + patroni + sqlserver-fci-ag; sqlserver live-ratified 2026-05-22, smoke 56/56 GREEN)
 
 networks:
   vmnet10:
@@ -71,16 +71,18 @@ clusters:
 
   sqlserver:
     purpose: SQL Server FCI + Always On AG (Phase 0.G.7 -- hybrid FCI+AG; FCI pair shares iSCSI LUN from nexus-gateway, AG replicas hold async copies)
-    phase: 0.G.7 (scaffolded 2026-05-20; ratification pending)
+    phase: 0.G.7 (LIVE-RATIFIED 2026-05-22; smoke-0.G.7 ALL GREEN 56/56)
     architecture: |
       Hybrid FCI + AG (sealed with Greg 2026-05-20). sql-fci-1/2 form a
       2-node WSFC Failover Cluster Instance sharing an iSCSI LUN (60 GB
       sparse, exported by tgt on nexus-gateway per ADR-0026). The FCI
-      virtual server identity is `sql-fci-cluster` at .70.16; user DBs
-      live on the iSCSI CSV at S:\\.
+      virtual server identity is `sqlfci` at .70.16 (distinct from the WSFC
+      cluster CNO `sql-fci-cluster` at .70.15 -- the two must differ); user
+      DBs live on the iSCSI LUN as a clustered Physical Disk at S:\\.
       sql-ag-rep-1/2 are standalone SQL instances holding async AG
-      replicas of the FCI's user DBs. WSFC quorum spans all 4 nodes
-      (node-majority, tolerates 1 failure).
+      replicas of the FCI's user DBs (seeded MANUALLY -- FCI DBs on shared
+      S:\\ vs replicas on local C:\\ rules out AUTOMATIC seeding). WSFC
+      quorum spans all 4 nodes (node-majority, tolerates 1 failure).
       The AG Listener (sql-ag-listener at .70.17) is the LB-tier HA
       primitive per ADR-0025 -- SQL clients connect to .17, WSFC migrates
       the IP atomically across AG primary failover. Listener cert IP-SAN
@@ -102,7 +104,7 @@ clusters:
       type: iSCSI
       target: iqn.2026-05.local.nexus:sql-fci.lun1
       backing: /srv/iscsi/sql-fci-shared.img (60 GB sparse on nexus-gateway)
-      lun_path_on_fci: S:\\ (formatted NTFS 64K, mounted as Cluster Shared Volume)
+      lun_path_on_fci: S:\\ (formatted NTFS 64K, attached as a clustered Physical Disk -- a single-instance FCI takes a dedicated cluster disk, not a CSV)
       consumers: [sql-fci-1, sql-fci-2]   # only the FCI pair attaches; AG replicas use local storage
       auth: CHAP (incoming-user sql-fci-initiator; secret in Vault KV at nexus/oltp/sqlserver/iscsi-chap-secret)
       adr: ADR-0026
