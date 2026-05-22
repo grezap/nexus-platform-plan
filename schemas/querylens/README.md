@@ -50,5 +50,5 @@ Stream naming: `query-{hash}`. Event types: `QueryObserved`, `QueryPerformanceSn
 
 - Window functions with `LAG/LEAD` on `dmv_snapshots` for delta calc.
 - Recursive CTE decomposing plan XML operator tree.
-- SQL Server 2022 `sys.dm_exec_query_stats` + `sys.query_store_plan` joins.
+- SQL Server 2025 `sys.dm_exec_query_stats` + `sys.query_store_plan` joins.
 - Pattern matching exhaustiveness on `AlertSeverity = LowSeverity | MediumSeverity | CriticalSeverity`.

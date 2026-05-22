@@ -12,7 +12,7 @@
 The NexusPlatform 66-VM lab runs multiple Windows guests (non-optional):
 
 - `dc-nexus` — **Windows Server 2025 Desktop Experience** (AD DC + DNS + RSAT host)
-- SQL Server AG nodes — **Windows Server 2025 Core** (headless, SQL Server 2022 FCI + AG)
+- SQL Server FCI + AG nodes — **Windows Server 2025 Desktop Experience** (SQL Server 2025 Developer Edition; FCI + Always On AG; live-ratified Phase 0.G.7 2026-05-22)
 - `nexus-desk` test workstations — **Windows 11 Enterprise** (for WinForms/WPF/WinUI 3 app verification)
 
 Windows guests require activation. Four paths exist:

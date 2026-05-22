@@ -163,7 +163,7 @@ A: Pro is not used. Enterprise is chosen because the `nexus-desk` apps target en
 A: Technically yes — treat it as `source: retail` in Vault. But a retail key ties to one install; rebuilds would exhaust the activation count. MSDN or Evaluation is strongly preferred.
 
 **Q: What about SQL Server?**
-A: SQL Server 2022 Developer Edition is free for dev/test and has full Enterprise feature parity — used for all SQL Server nodes. No licensing concerns.
+A: SQL Server 2025 Developer Edition is free for dev/test and has full Enterprise feature parity — used for all SQL Server nodes (instance `MSSQL17`). No licensing concerns.
 
 **Q: What about Visual Studio itself on Windows 11?**
 A: Community Edition is free for dev/test; Professional/Enterprise comes from the MSDN subscription. Install orchestrated by Ansible `windows_base` role.
