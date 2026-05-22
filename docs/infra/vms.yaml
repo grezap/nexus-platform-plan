@@ -8,7 +8,7 @@ metadata:
   host: 10.0.70.101
   hypervisor: VMware Workstation Pro 17.5+
   plan_version: v0.1.5
-  oltp_tier_status: SEALED 2026-05-22 (5/5 OLTP clusters LIVE — redis + mongo + percona + patroni + sqlserver-fci-ag; sqlserver live-ratified 2026-05-22, smoke 56/56 GREEN)
+  oltp_tier_status: SEALED 2026-05-22 (5/5 OLTP clusters cold-rebuild PROVEN — redis + mongo + percona + patroni + sqlserver-fci-ag; sqlserver proven via destroy+packer-build+apply-from-zero+smoke 56/56 GREEN 2026-05-22)
 
 networks:
   vmnet10:
@@ -71,7 +71,7 @@ clusters:
 
   sqlserver:
     purpose: SQL Server FCI + Always On AG (Phase 0.G.7 -- hybrid FCI+AG; FCI pair shares iSCSI LUN from nexus-gateway, AG replicas hold async copies)
-    phase: 0.G.7 (LIVE-RATIFIED 2026-05-22; smoke-0.G.7 ALL GREEN 56/56)
+    phase: 0.G.7 (PROVEN COLD-REBUILDABLE 2026-05-22; destroy+packer-build+apply-from-zero; smoke-0.G.7 ALL GREEN 56/56)
     architecture: |
       Hybrid FCI + AG (sealed with Greg 2026-05-20). sql-fci-1/2 form a
       2-node WSFC Failover Cluster Instance sharing an iSCSI LUN (60 GB
