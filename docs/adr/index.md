@@ -40,6 +40,7 @@ Architecture Decision Records across the portfolio. Shared ADRs (0001–0010) ar
 | 0030 | [Phase 0.G.6: StarRocks topology — FE quorum (BDB-JE) + BE tablet sharding/replication](./ADR-0030-starrocks-fe-quorum-be-tablet-sharding.md) | accepted | 2026-05-22 |
 | 0031 | [Phase 0.G.5/0.G.6: Analytics client front door — round-robin DNS, no VRRP VIP (resolves ADR-0025's analytics open questions)](./ADR-0031-analytics-client-front-door-round-robin-dns.md) | accepted | 2026-05-22 |
 | 0032 | [Phase 0.G.5/0.G.6: Analytics backup repository — NFS export from nexus-gateway (MinIO deferred to 0.L)](./ADR-0032-analytics-backup-repository-nfs-gateway.md) | accepted | 2026-05-22 |
+| 0033 | [Phase 0.L.1: Lakehouse object storage — MinIO distributed erasure-coded cluster (supersedes ADR-0032's MinIO-deferred note)](./ADR-0033-minio-distributed-erasure-coded-object-storage.md) | accepted | 2026-05-23 |
 | 0144 | [Windows licensing posture — MSDN primary, Evaluation fallback](./ADR-0144-windows-licensing.md) | accepted | 2026-04-22 |
 
 ## Per-project ADRs

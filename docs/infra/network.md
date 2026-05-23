@@ -105,11 +105,11 @@ VMnet10 third octet encodes cluster role so that IPs read as cluster identity:
 | 10.80.x | Redis cluster · MM2 · REST Proxy | .81–.89 | .81–.89 |
 | 10.90.x | obs stack · Schema Registry · Connect · ksqlDB | .85–.98 | .85–.98 |
 | 10.10.111+ | Swarm managers | .111–.113 | .111–.113 |
-| 10.10.115+ | Platform tools (registry, prefect, unleash, marquez, backstage) | .115, .140, .146–.148 | same |
+| 10.10.115+ | Platform tools — registry-1 (Harbor) `.115` (Phase 0.L.4); prefect/unleash/marquez/backstage `.116`–`.119` (future 0.I/0.J/0.K) | .115–.119 | same |
 | 10.10.121+ | Vault cluster | .121–.123 | .121–.123 |
 | 10.10.131+ | Swarm workers | .131–.133 | .131–.133 |
-| 10.10.14x | Spark + MinIO + JupyterHub | .140–.145 | .140–.145 |
-| 10.10.150 | Windows workstations | .150 | .150 |
+| 10.10.14x | **Lakehouse (`08-spark`, Phase 0.L)** — spark-master `.140`; MinIO `.141`–`.144`; spark-worker `.145`/`.146`; iceberg-rest `.147`/`.148`; iceberg-pg `.149`/`.150`; **catalog-DB VIP `.151`** (VRRP); JupyterHub `.152` (future) | .140–.152 | .140–.150 (VMnet10 backplane; VIP `.151` is VMnet11-only) |
+| 10.10.160 | Windows workstations (`nexusdesk-dev`) — moved off `.150` (now iceberg-pg-2) when the lakehouse tier claimed the `.14x` decade | .160 | .160 |
 
 Reserved on VMnet11: **`.1` = nexus-gateway**, **`.2`–`.9` = reserved for future edge appliances (pfSense standby, WireGuard bastion)**, **`.254` = host**.
 
@@ -156,6 +156,7 @@ Complete VM → IP map lives in [`vms.yaml`](./vms.yaml).
   - `portainer.nexus.lab` → swarm managers `.111`–`.113` (Phase 0.E.4c)
   - `clickhouse.nexus.lab` → ClickHouse data nodes `.44`–`.49` (Phase 0.G.5; the 6 shard-replica nodes — every one is an equal `Distributed`-table entry point)
   - `starrocks-fe.nexus.lab` → StarRocks FE `.31`–`.33` (Phase 0.G.6; MySQL protocol `:9030`, HTTP `:8030` — any FE serves queries + forwards DDL to the Leader)
+  - `minio.nexus.lab` → MinIO nodes `.141`–`.144` (Phase 0.L.1; S3 API `:9000` — every node is an equal erasure-set entry point; per-host `minio-server` PKI certs carry this name in their SANs)
 
 ### Analytics-tier MAC reservations (VMnet11 dhcp-host)
 
@@ -171,6 +172,27 @@ The 15 analytics nodes get static-pinned VMnet11 IPs via dnsmasq `dhcp-host` res
 | ch-shard2-rep1 | .46 | `8F` | sr-be-1 | .34 | `96` |
 | ch-shard2-rep2 | .47 | `90` | sr-be-2 | .35 | `97` |
 |  |  |  | sr-be-3 | .36 | `98` |
+
+### Lakehouse-tier MAC reservations (VMnet11 dhcp-host)
+
+The 11 lakehouse nodes (Phase 0.L, tier `08-spark`) get static-pinned VMnet11 IPs
+via dnsmasq `dhcp-host` reservations on `nexus-gateway` (the contiguous MAC block
+after the analytics tier, which ends at `:98`). Secondary NICs (VMnet10 backplane)
+use the same sixth byte with fifth byte `01`. Primary MAC plan (`00:50:56:3F:00:XX`):
+
+| Node | VMnet11 | Primary MAC `…:00:` | Node | VMnet11 | Primary MAC `…:00:` |
+|---|---|---|---|---|---|
+| spark-master   | .140 | `99` | spark-worker-2 | .146 | `9F` |
+| minio-1        | .141 | `9A` | iceberg-rest-1 | .147 | `A0` |
+| minio-2        | .142 | `9B` | iceberg-rest-2 | .148 | `A1` |
+| minio-3        | .143 | `9C` | iceberg-pg-1   | .149 | `A2` |
+| minio-4        | .144 | `9D` | iceberg-pg-2   | .150 | `A3` |
+| spark-worker-1 | .145 | `9E` | registry-1 (Harbor, `09-platform`) | .115 | `A4` |
+
+The StarRocks shared-data/CN tier (Phase 0.L.5, extends `04-analytics`) continues
+the block at `A5`–`A9` → FE `.37`/`.38`/`.39` + CN `.30`/`.40` (the CN-2 `.40` is
+a documented spillover into the first free ClickHouse-decade slot, because the
+StarRocks `.3x` decade had only 4 free slots and Greg chose full-HA 3 FE + 2 CN).
 
 ## Firewall posture
 

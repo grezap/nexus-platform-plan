@@ -166,6 +166,10 @@ A **document database**. Stores JSON-shaped records ("documents") with a flexibl
 **Sharded in-memory key-value store**. Sub-millisecond latency for caching, rate limiting, pub/sub. The cluster mode shards keys across multiple shards with replicas per shard.
 *In NexusPlatform:* 3 shards × 2 replicas. Powers the `localmind` RAG cache and `tenantcore` session store.
 
+### MinIO
+A high-performance, **S3-compatible object store** written in Go (single binary). In *distributed* mode it spreads objects across a set of drives/nodes with **erasure coding** (Reed–Solomon) — data is split into data + parity shards so the cluster survives drive/node loss without replication's full-copy overhead. It is the lakehouse's storage layer: Iceberg table data, Spark event logs, and StarRocks shared-data storage volumes all live in MinIO buckets.
+*In NexusPlatform:* Phase 0.L.1 — a **4-node distributed erasure-coded** cluster (`minio-1..4`, each with a dedicated xfs data drive, default EC:2 → tolerates one node read-write / two nodes read-only). Inter-node erasure/heal traffic rides the VMnet10 backplane; clients reach it via round-robin DNS `minio.nexus.lab:9000` with no VIP (every node is an equal entry point — [ADR-0033](adr/ADR-0033-minio-distributed-erasure-coded-object-storage.md)). mTLS via per-host Vault PKI; the warehouse/spark-events/lakehouse buckets + a least-priv `nexus-lakehouse-app` service account are provisioned at bootstrap.
+
 ### ClickHouse
 A **columnar OLAP database**. Built for scanning billions of rows quickly with aggregations and analytical queries. Not for OLTP, not for join-heavy workloads, but staggeringly fast for analytical scans. Scales horizontally by **sharding** (split data across nodes) and tolerates failure by **replication** (copy each shard to ≥2 nodes).
 *In NexusPlatform:* Phase 0.G.5 — a genuine **3 shards × 2 replicas** cluster (6 data nodes) coordinated by a 3-node ClickHouse Keeper quorum. Powers the analytics half of `dataflow-studio`, `chronosight` time-series queries, `pulsenlp` token analytics, and `streamcore` aggregates.

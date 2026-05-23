@@ -3,8 +3,8 @@
 # Source of truth for nexus-infra-vmware Terraform modules.
 
 metadata:
-  updated: 2026-05-22
-  vm_count: 67          # 65 lab VMs + nexus-gateway (VM #0) + vault-transit (Phase 0.D.5). 0.G.7 sqlserver cluster reused the canonical 4 nodes already present here.
+  updated: 2026-05-23
+  vm_count: 73          # +6 net at Phase 0.L: the lakehouse tier (08-spark) grew from the speculative 5 (spark/minio/jupyter) to 11 (4 MinIO + spark master+2 workers + 2 iceberg-rest + 2 iceberg-pg). 0.L.5 will add 5 StarRocks shared-data nodes (04-analytics) when it lands.
   host: 10.0.70.101
   hypervisor: VMware Workstation Pro 17.5+
   plan_version: v0.1.5
@@ -268,28 +268,46 @@ clusters:
       - { name: swarm-worker-2,  os: deb13, vcpu: 4, ram_gb: 4, disk_gb: 80, vmnet10: 192.168.10.132, vmnet11: 192.168.70.132, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-worker-2,  role: "Swarm worker + Nomad client + Consul client + Portainer Agent (global) + Vault Agent" }
       - { name: swarm-worker-3,  os: deb13, vcpu: 4, ram_gb: 4, disk_gb: 80, vmnet10: 192.168.10.133, vmnet11: 192.168.70.133, dir: H:\VMS\NexusPlatform\06-orchestration\swarm-worker-3,  role: "Swarm worker + Nomad client + Consul client + Portainer Agent (global) + Vault Agent" }
 
-  spark:
-    purpose: Apache Spark 3.5 + Iceberg + MinIO + JupyterHub
+  lakehouse:
+    purpose: Lakehouse tier (Phase 0.L) -- MinIO (S3 object store) + Apache Iceberg (REST catalog + dedicated PG HA) + Apache Spark. Repo nexus-infra-lakehouse (tier 08-spark).
     phase: 0.L
+    architecture: |
+      0.L.1 MinIO distributed erasure-coded (4 nodes, a dedicated xfs data VMDK each
+      at /mnt/minio/data, default EC:2). 0.L.2 Iceberg REST catalog (2 HA instances,
+      round-robin iceberg.nexus.lab) backed by a dedicated PostgreSQL master-replica
+      pair (streaming replication + keepalived VRRP VIP iceberg-db.nexus.lab .151).
+      0.L.3 Spark standalone (1 master + 2 workers, S3A->MinIO + Iceberg runtime).
+      Client front doors = round-robin DNS, no VIP except the catalog-DB VRRP VIP.
+      RAM right-sized per feedback_prefer_less_memory.md. MAC block :99-:A3 (after
+      analytics :98); secondary NIC same 6th byte, 5th byte 01.
+    virtual_ips:
+      - { ip: 192.168.70.151, name: iceberg-db.nexus.lab, owners: "iceberg-pg-1 (MASTER prio 110) / iceberg-pg-2 (BACKUP prio 100)", service: "Iceberg catalog Postgres front door (unicast VRRP; Phase 0.L.2)" }
     nodes:
-      - { name: spark-master,    os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 100, vmnet10: 192.168.10.141, vmnet11: 192.168.70.141, dir: H:\VMS\NexusPlatform\08-spark\spark-master,    role: "Spark master" }
-      - { name: spark-worker-1,  os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 200, vmnet10: 192.168.10.142, vmnet11: 192.168.70.142, dir: H:\VMS\NexusPlatform\08-spark\spark-worker-1,  role: "Spark worker" }
-      - { name: spark-worker-2,  os: deb13, vcpu: 4, ram_gb: 16, disk_gb: 200, vmnet10: 192.168.10.143, vmnet11: 192.168.70.143, dir: H:\VMS\NexusPlatform\08-spark\spark-worker-2,  role: "Spark worker" }
-      - { name: minio-1,         os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 500, vmnet10: 192.168.10.144, vmnet11: 192.168.70.144, dir: H:\VMS\NexusPlatform\08-spark\minio-1,         role: "MinIO S3 store + Iceberg REST catalog" }
-      - { name: jupyterhub-1,    os: deb13, vcpu: 2, ram_gb: 8,  disk_gb: 80,  vmnet10: 192.168.10.145, vmnet11: 192.168.70.145, dir: H:\VMS\NexusPlatform\08-spark\jupyterhub-1,    role: "JupyterHub with PySpark kernel" }
+      - { name: spark-master,   os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.140, vmnet11: 192.168.70.140, dir: H:\VMS\NexusPlatform\08-spark\spark-master,   role: "Spark standalone master (0.L.3)" }
+      - { name: minio-1,        os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.141, vmnet11: 192.168.70.141, dir: H:\VMS\NexusPlatform\08-spark\minio-1,        role: "MinIO distributed EC node (0.L.1 BUILT + cold-rebuild proven 2026-05-23); + dedicated 100 GB xfs data VMDK /mnt/minio/data" }
+      - { name: minio-2,        os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.142, vmnet11: 192.168.70.142, dir: H:\VMS\NexusPlatform\08-spark\minio-2,        role: "MinIO distributed EC node (0.L.1 BUILT); + dedicated 100 GB xfs data VMDK" }
+      - { name: minio-3,        os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.143, vmnet11: 192.168.70.143, dir: H:\VMS\NexusPlatform\08-spark\minio-3,        role: "MinIO distributed EC node (0.L.1 BUILT); + dedicated 100 GB xfs data VMDK" }
+      - { name: minio-4,        os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.144, vmnet11: 192.168.70.144, dir: H:\VMS\NexusPlatform\08-spark\minio-4,        role: "MinIO distributed EC node (0.L.1 BUILT); + dedicated 100 GB xfs data VMDK" }
+      - { name: spark-worker-1, os: deb13, vcpu: 4, ram_gb: 4, disk_gb: 80,  vmnet10: 192.168.10.145, vmnet11: 192.168.70.145, dir: H:\VMS\NexusPlatform\08-spark\spark-worker-1, role: "Spark standalone worker (0.L.3)" }
+      - { name: spark-worker-2, os: deb13, vcpu: 4, ram_gb: 4, disk_gb: 80,  vmnet10: 192.168.10.146, vmnet11: 192.168.70.146, dir: H:\VMS\NexusPlatform\08-spark\spark-worker-2, role: "Spark standalone worker (0.L.3)" }
+      - { name: iceberg-rest-1, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.147, vmnet11: 192.168.70.147, dir: H:\VMS\NexusPlatform\08-spark\iceberg-rest-1, role: "Iceberg REST catalog HA instance (0.L.2); round-robin iceberg.nexus.lab" }
+      - { name: iceberg-rest-2, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.148, vmnet11: 192.168.70.148, dir: H:\VMS\NexusPlatform\08-spark\iceberg-rest-2, role: "Iceberg REST catalog HA instance (0.L.2)" }
+      - { name: iceberg-pg-1,   os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 60,  vmnet10: 192.168.10.149, vmnet11: 192.168.70.149, dir: H:\VMS\NexusPlatform\08-spark\iceberg-pg-1,   role: "Iceberg catalog PostgreSQL PRIMARY (0.L.2); streaming repl + keepalived VIP .151" }
+      - { name: iceberg-pg-2,   os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 60,  vmnet10: 192.168.10.150, vmnet11: 192.168.70.150, dir: H:\VMS\NexusPlatform\08-spark\iceberg-pg-2,   role: "Iceberg catalog PostgreSQL REPLICA (0.L.2)" }
+      # JupyterHub (.152) deferred (post-0.L app-project work).
 
   platform-tools:
-    purpose: Harbor registry, Prefect, Unleash, Marquez, Backstage
-    phase: 0.L
+    purpose: Harbor registry (Phase 0.L.4, repo nexus-infra-registry) + future Prefect/Unleash/Marquez/Backstage (0.I/0.J/0.K)
+    phase: 0.L.4 (registry-1) / 0.I-0.K (rest)
     nodes:
-      - { name: registry-1,     os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 400, vmnet10: 192.168.10.115, vmnet11: 192.168.70.115, dir: H:\VMS\NexusPlatform\09-platform\registry-1,     role: "Harbor + Trivy + replication" }
-      - { name: prefect-server, os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 80,  vmnet10: 192.168.10.140, vmnet11: 192.168.70.140, dir: H:\VMS\NexusPlatform\09-platform\prefect-server, role: "Prefect 3 OSS self-host" }
-      - { name: unleash-1,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.146, vmnet11: 192.168.70.146, dir: H:\VMS\NexusPlatform\09-platform\unleash-1,      role: "Unleash feature flags" }
-      - { name: marquez,        os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.147, vmnet11: 192.168.70.147, dir: H:\VMS\NexusPlatform\09-platform\marquez,        role: "Marquez (OpenLineage UI)" }
-      - { name: backstage,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.148, vmnet11: 192.168.70.148, dir: H:\VMS\NexusPlatform\09-platform\backstage,      role: "Backstage service catalog (optional)" }
+      - { name: registry-1,     os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 400, vmnet10: 192.168.10.115, vmnet11: 192.168.70.115, dir: H:\VMS\NexusPlatform\09-platform\registry-1,     role: "Harbor (docker-compose) + Trivy + Vault OIDC (0.L.4)" }
+      - { name: prefect-server, os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 80,  vmnet10: 192.168.10.116, vmnet11: 192.168.70.116, dir: H:\VMS\NexusPlatform\09-platform\prefect-server, role: "Prefect 3 OSS self-host (future)" }
+      - { name: unleash-1,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.117, vmnet11: 192.168.70.117, dir: H:\VMS\NexusPlatform\09-platform\unleash-1,      role: "Unleash feature flags (future)" }
+      - { name: marquez,        os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.118, vmnet11: 192.168.70.118, dir: H:\VMS\NexusPlatform\09-platform\marquez,        role: "Marquez (OpenLineage UI) (future)" }
+      - { name: backstage,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.119, vmnet11: 192.168.70.119, dir: H:\VMS\NexusPlatform\09-platform\backstage,      role: "Backstage service catalog (optional, future)" }
 
   windows-workstations:
     purpose: Developer Windows 11 workstation for MAUI / nexus-desk test
     phase: 0.F / 10 / 13
     nodes:
-      - { name: nexusdesk-dev, os: win11ent, vcpu: 4, ram_gb: 12, disk_gb: 200, vmnet10: 192.168.10.150, vmnet11: 192.168.70.150, dir: H:\VMS\NexusPlatform\07-windows-workstations\nexusdesk-dev, role: "Windows 11 dev VM — MAUI + nexus-desk test host" }
+      - { name: nexusdesk-dev, os: win11ent, vcpu: 4, ram_gb: 12, disk_gb: 200, vmnet10: 192.168.10.160, vmnet11: 192.168.70.160, dir: H:\VMS\NexusPlatform\07-windows-workstations\nexusdesk-dev, role: "Windows 11 dev VM — MAUI + nexus-desk test host (moved off .150 -> .160 when the lakehouse tier claimed the .14x decade, Phase 0.L)" }
