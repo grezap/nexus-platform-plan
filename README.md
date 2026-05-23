@@ -44,13 +44,32 @@ Changes to canon (network, enhancements, gates) land here first, then propagate 
 
 ## Status
 
-- **Phase 0 — Infrastructure** *(in flight, ~80% complete)*. Four of five infra repos are live and cold-rebuildable; the operator CLI is at `v0.5.0` (**all 5 master-plan verbs live, Phase 0.F closed**); the Kafka ecosystem tier is tagged `v0.1.0`; the **OLTP tier is SEALED 5/5** — Redis + MongoDB + Percona/ProxySQL + Patroni/etcd/HAProxy + **SQL Server FCI + Always On AG** (live-ratified 2026-05-22, `smoke-0.G.7.ps1` ALL GREEN 56/56).
+- **Phase 0 — Infrastructure** *(in flight, ~85% complete)*. All five core infra repos are live and cold-rebuildable; the operator CLI is at `v0.5.0` (**all 5 master-plan verbs live, Phase 0.F closed**); the Kafka ecosystem tier is tagged `v0.1.0`; the **OLTP tier is SEALED 5/5** — Redis + MongoDB + Percona/ProxySQL + Patroni/etcd/HAProxy + **SQL Server FCI + Always On AG** (live-ratified 2026-05-22, `smoke-0.G.7.ps1` ALL GREEN 56/56).
 - Phases closed: **0.B / 0.C / 0.D / 0.E / 0.F / 0.H** + **Phase 0.G.1-0.G.3 + 0.G.3.5** (OLTP first 3 clusters cold-rebuild proven). Phase 0.D foundation tier (Vault HA + PKI + LDAPS + Transit auto-unseal + GMSA scaffold + Vault Agents) ✅; Phase 0.E orchestration tier (3+3 Swarm + Nomad + Consul + Portainer CE, mTLS end-to-end) ✅ — tagged `v0.2.0`; Phase 0.H Kafka ecosystem tier ✅ — tagged `v0.1.0`; **Phase 0.F operator CLI ✅ tagged `v0.5.0`**; **Phase 0.G.1-0.G.3 + 0.G.3.5 ✅ all cold-rebuild proven 2026-05-18 via per-cluster envs + per-engine templates** (per the architectural canon born from 0.G.3's 16-transient stall).
 - **Phase 0.G.4 (Patroni PG HA + etcd + HAProxy HA pair) ✅ CLOSED 2026-05-19**, **8 VMs** (3 patroni + 3 etcd + **2 HAProxy** with VRRP VIP `.60`, mirroring the 0.G.3 proxysql-1/2 pattern — no SPOF on the LB tier): smoke gate **152/152 ALL GREEN** end-to-end. Ratification surfaced 18 transients (PG-17 PGDG t64-bookworm fallback · patronictl 4 CLI shape · tmpfs /tmp limit on small VMs · dnsmasq nexus.local vs nexus.lab domain · etcdctl JSON leader-id field · Patroni 4 password_file unsupported in restapi.auth · Patroni 4 ignores bootstrap.users · HAProxy needs CAP_SYS_CHROOT + `default-server check` keyword · PS quote/scope traps in smoke · etc) — all permanently fixed in source (handbook §3.4 18-row chronology table).
 - **Phase 0.G.7 (SQL Server FCI + Always On AG) ✅ LIVE-RATIFIED 2026-05-22**, **4 ws2025-desktop nodes** (2-node FCI `sqlfci` @ `.70.16` sharing an iSCSI LUN from nexus-gateway + 2 async AG replicas; AG Listener `sql-ag-listener` @ `.70.17`): `smoke-0.G.7.ps1` **56/56 ALL GREEN**. First Windows-fleet data cluster + first real GMSA consumer + first iSCSI shim. 40+ ratification transients fixed in source (handbook §3.5b + §3.5c). **OLTP tier SEALED (5/5).**
-- Next: continue **0.G** (cluster framework + nexus-cli `IClusterAdapter` SqlFci/SqlAg adapters + System B demos), or pivot to **0.I** (observability), **0.J** (`nexus-shared`), **0.K** (`portfolio` website), **0.L** (`nexus-infra-spark` + Harbor), or app phases.
+- **Phase 0.G analytics tier ✅ SEALED 2026-05-23** — `grezap/nexus-infra-analytics` tagged `v0.1.0`: ClickHouse (0.G.5, 3 shards × 2 replicas + 3 Keeper) + StarRocks (0.G.6, 3 FE + 3 BE shared-nothing) both live-ratified **and cold-rebuild-proven** (`smoke-0.G.5.ps1` 129/129 · `smoke-0.G.6.ps1` 73/73 GREEN). **Phase 0.G data tier COMPLETE** (OLTP `v0.1.0` + analytics `v0.1.0`).
 
-See [`CHANGELOG.md`](./CHANGELOG.md) for canon history and [`MASTER-PLAN.md`](./MASTER-PLAN.md) for the full roadmap.
+### Roadmap (status 2026-05-23)
+
+```
+INFRASTRUCTURE
+  1. 0.G.5/0.G.6  Analytics (ClickHouse + StarRocks)        ✅ DONE (nexus-infra-analytics v0.1.0)
+  2. 0.L          Spark + Iceberg + MinIO + Harbor          ← NEXT
+  3. 0.I          Observability (LAST — monitors full fleet)
+  4. 0.M          2nd AD DC (foundation HA)
+  5. 0.N          MongoDB sharded cluster (extends nexus-infra-oltp)
+  6. 0.O          nexus-infra-vitess  (MySQL sharding — NEW repo)
+  7. 0.P          nexus-infra-citus   (PostgreSQL sharding — NEW repo)
+        ↓
+  nexus-cli adapters  — 7 base + VitessAdapter + CitusAdapter + sharded-Mongo
+        ↓
+  0.J nexus-shared → 0.K portfolio → app projects 1–14
+```
+
+Deferred into 0.L: the **StarRocks CN / shared-data** (storage-compute-separation) tier — it needs object storage (MinIO), so it lands once 0.L MinIO is up. Build MinIO first in 0.L (Iceberg, Spark, and the StarRocks CN tier all depend on it).
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for canon history and [`MASTER-PLAN.md`](./MASTER-PLAN.md) for the full roadmap detail.
 
 ## Related repos
 
