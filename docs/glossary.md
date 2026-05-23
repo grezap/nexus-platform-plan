@@ -211,6 +211,14 @@ A **table format for data lakes**. Lets you treat a directory of Parquet files i
 *In NexusPlatform:* bronze/silver/gold layers in `lakehouse-core`, queryable from Spark, Trino, and dbt.
 *Common alternatives:* Delta Lake (Databricks-flavored), Apache Hudi.
 
+### Iceberg REST catalog
+The **catalog** is the service that maps a table name (`db.table`) to its current Iceberg metadata pointer in object storage — engines ask the catalog "where is this table now?" before reading/writing. The **REST catalog** is the standardized HTTP protocol for that lookup (Iceberg's `/v1/config`, `/v1/namespaces`, …), so any engine (Spark, StarRocks, Trino) talks to one catalog the same way. The catalog needs a durable metadata store behind it (a SQL DB), which is the thing that must be made HA.
+
+### Project Nessie
+An **Iceberg REST catalog implementation** (Quarkus/Java) with a Git-like data model — namespaces and table pointers live on **branches** you can commit, tag, and merge, giving the warehouse version control + cross-table transactions. Pluggable "version store"; the JDBC store keeps state in PostgreSQL.
+*In NexusPlatform:* the `08-spark` catalog (0.L.2) — two stateless Nessie instances behind round-robin DNS (`iceberg.nexus.lab`), `JDBC2` version store on a dedicated PostgreSQL master-replica HA pair (keepalived VRRP VIP `iceberg-db.nexus.lab`), warehouse data in MinIO (ADR-0034).
+*Common alternatives:* the Tabular/`iceberg-rest-fixture` reference image (non-HA demo), Lakekeeper (Rust), AWS Glue / Polaris.
+
 ---
 
 ## 5. Streaming & event flow

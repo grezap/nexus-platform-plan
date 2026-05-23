@@ -157,6 +157,8 @@ Complete VM → IP map lives in [`vms.yaml`](./vms.yaml).
   - `clickhouse.nexus.lab` → ClickHouse data nodes `.44`–`.49` (Phase 0.G.5; the 6 shard-replica nodes — every one is an equal `Distributed`-table entry point)
   - `starrocks-fe.nexus.lab` → StarRocks FE `.31`–`.33` (Phase 0.G.6; MySQL protocol `:9030`, HTTP `:8030` — any FE serves queries + forwards DDL to the Leader)
   - `minio.nexus.lab` → MinIO nodes `.141`–`.144` (Phase 0.L.1; S3 API `:9000` — every node is an equal erasure-set entry point; per-host `minio-server` PKI certs carry this name in their SANs)
+  - `iceberg.nexus.lab` → Nessie REST nodes `.147`/`.148` (Phase 0.L.2; Iceberg REST API HTTPS `:19120` — two stateless catalog instances, any one serves any request; per-host `iceberg-server` PKI certs carry this name in their SANs)
+  - `iceberg-db.nexus.lab` → catalog-DB **VRRP VIP `.151`** (Phase 0.L.2; PostgreSQL `:5432` — keepalived floats the VIP to the current master of the iceberg-pg `.149`/`.150` master-replica pair; the PG leaf cert IP-SANs/SAN carry this name + `.151`)
 
 ### Analytics-tier MAC reservations (VMnet11 dhcp-host)
 
