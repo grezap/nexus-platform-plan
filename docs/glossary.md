@@ -242,7 +242,12 @@ A **distributed log / streaming platform**. Producers write records to "topics";
 
 ### Apache Spark
 A **distributed compute engine** for large-scale batch and streaming data processing. Originally a Hadoop replacement, now the standard for large-scale ETL pipelines and ML feature engineering. Programs in Scala, Python (PySpark), or SQL.
-*In NexusPlatform:* 1 master + 2 workers run jobs in `lakehouse-core` (bronze→silver→gold transformations) and offline ML feature builds for `sentinelml` and `pulsenlp`.
+*In NexusPlatform:* the `08-spark` tier (0.L.3) runs Spark **standalone in HA** — **2 masters (active/standby, ZooKeeper-elected) + 3 workers** — writing Iceberg tables through the Nessie REST catalog into the MinIO warehouse (S3A). The master HA election lives in a dedicated ZooKeeper ensemble (`recoveryMode=ZOOKEEPER`); cluster RPC is authenticated + AES-encrypted with a Vault-seeded shared secret (ADR-0035). Also serves offline ML feature builds for `sentinelml` and `pulsenlp`.
+- **standalone mode** — Spark's built-in cluster manager (a master scheduling apps onto workers), as opposed to running Spark on YARN or Kubernetes. The master is the control plane, so HA needs ≥2 masters + a coordination quorum.
+
+### Apache ZooKeeper
+A **distributed coordination service** — a small, strongly-consistent hierarchical key-value store (znodes) with leader election, used by older distributed systems to agree on "who is the leader" and to store cluster metadata. Runs as an odd-sized ensemble (3/5 nodes) for quorum fault-tolerance.
+*In NexusPlatform:* the **one deliberate Apache-ZooKeeper exception** — a single 3-node ensemble on the `08-spark` backplane that coordinates Spark standalone master HA (0.L.3, ADR-0035). The platform otherwise runs **zero** ZooKeeper: Kafka uses **KRaft** and ClickHouse uses **Keeper** (a ZK-protocol-compatible C++ reimplementation). ZooKeeper was chosen here only because it is Spark standalone's sole mainstream-tested HA mechanism.
 
 ### JupyterHub
 A **multi-user Jupyter Notebook server**. Browser-based notebooks (Python, R, Scala) running against shared compute, with per-user authentication and isolation.

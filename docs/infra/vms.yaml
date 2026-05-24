@@ -4,7 +4,7 @@
 
 metadata:
   updated: 2026-05-23
-  vm_count: 73          # +6 net at Phase 0.L: the lakehouse tier (08-spark) grew from the speculative 5 (spark/minio/jupyter) to 11 (4 MinIO + spark master+2 workers + 2 iceberg-rest + 2 iceberg-pg). 0.L.5 will add 5 StarRocks shared-data nodes (04-analytics) when it lands.
+  vm_count: 78          # +11 net at Phase 0.L: the lakehouse tier (08-spark) = 16 VMs (4 MinIO + 2 Spark masters + 3 Spark workers + 3 ZooKeeper + 2 iceberg-rest + 2 iceberg-pg). 0.L.3 added the 2nd Spark master + 3rd worker + the 3-node ZooKeeper ensemble (Spark HA). 0.L.5 will add 5 StarRocks shared-data nodes (04-analytics) when it lands.
   host: 10.0.70.101
   hypervisor: VMware Workstation Pro 17.5+
   plan_version: v0.1.5
@@ -276,25 +276,34 @@ clusters:
       at /mnt/minio/data, default EC:2). 0.L.2 Iceberg REST catalog (2 HA instances,
       round-robin iceberg.nexus.lab) backed by a dedicated PostgreSQL master-replica
       pair (streaming replication + keepalived VRRP VIP iceberg-db.nexus.lab .151).
-      0.L.3 Spark standalone (1 master + 2 workers, S3A->MinIO + Iceberg runtime).
+      0.L.3 Spark standalone HA (2 masters ZK-elected + 3 workers, Iceberg via the
+      Nessie REST catalog -> S3FileIO -> MinIO) + a dedicated 3-node Apache ZooKeeper
+      ensemble (the one deliberate Apache-ZK exception; ADR-0035).
       Client front doors = round-robin DNS, no VIP except the catalog-DB VRRP VIP.
       RAM right-sized per feedback_prefer_less_memory.md. MAC block :99-:A3 (after
-      analytics :98); secondary NIC same 6th byte, 5th byte 01.
+      analytics :98) for 0.L.1/0.L.2; 0.L.3 Spark HA expansion uses :AA-:AE (the
+      :A4-:A9 gap is reserved for 0.L.4 registry + 0.L.5 SR shared-data); secondary
+      NIC same 6th byte, 5th byte 01.
     virtual_ips:
       - { ip: 192.168.70.151, name: iceberg-db.nexus.lab, owners: "iceberg-pg-1 (MASTER prio 110) / iceberg-pg-2 (BACKUP prio 100)", service: "Iceberg catalog Postgres front door (unicast VRRP; Phase 0.L.2)" }
     nodes:
-      - { name: spark-master,   os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.140, vmnet11: 192.168.70.140, dir: H:\VMS\NexusPlatform\08-spark\spark-master,   role: "Spark standalone master (0.L.3)" }
+      - { name: spark-master-1, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.140, vmnet11: 192.168.70.140, dir: H:\VMS\NexusPlatform\08-spark\spark-master-1, role: "Spark standalone master (0.L.3 HA; ZK-elected; multi-master URL w/ spark-master-2; no VIP)" }
       - { name: minio-1,        os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.141, vmnet11: 192.168.70.141, dir: H:\VMS\NexusPlatform\08-spark\minio-1,        role: "MinIO distributed EC node (0.L.1 BUILT + cold-rebuild proven 2026-05-23); + dedicated 100 GB xfs data VMDK /mnt/minio/data" }
       - { name: minio-2,        os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.142, vmnet11: 192.168.70.142, dir: H:\VMS\NexusPlatform\08-spark\minio-2,        role: "MinIO distributed EC node (0.L.1 BUILT); + dedicated 100 GB xfs data VMDK" }
       - { name: minio-3,        os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.143, vmnet11: 192.168.70.143, dir: H:\VMS\NexusPlatform\08-spark\minio-3,        role: "MinIO distributed EC node (0.L.1 BUILT); + dedicated 100 GB xfs data VMDK" }
       - { name: minio-4,        os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 20,  vmnet10: 192.168.10.144, vmnet11: 192.168.70.144, dir: H:\VMS\NexusPlatform\08-spark\minio-4,        role: "MinIO distributed EC node (0.L.1 BUILT); + dedicated 100 GB xfs data VMDK" }
-      - { name: spark-worker-1, os: deb13, vcpu: 4, ram_gb: 4, disk_gb: 80,  vmnet10: 192.168.10.145, vmnet11: 192.168.70.145, dir: H:\VMS\NexusPlatform\08-spark\spark-worker-1, role: "Spark standalone worker (0.L.3)" }
-      - { name: spark-worker-2, os: deb13, vcpu: 4, ram_gb: 4, disk_gb: 80,  vmnet10: 192.168.10.146, vmnet11: 192.168.70.146, dir: H:\VMS\NexusPlatform\08-spark\spark-worker-2, role: "Spark standalone worker (0.L.3)" }
+      - { name: spark-worker-1, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.145, vmnet11: 192.168.70.145, dir: H:\VMS\NexusPlatform\08-spark\spark-worker-1, role: "Spark standalone worker (0.L.3)" }
+      - { name: spark-worker-2, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.146, vmnet11: 192.168.70.146, dir: H:\VMS\NexusPlatform\08-spark\spark-worker-2, role: "Spark standalone worker (0.L.3)" }
       - { name: iceberg-rest-1, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.147, vmnet11: 192.168.70.147, dir: H:\VMS\NexusPlatform\08-spark\iceberg-rest-1, role: "Iceberg REST catalog HA instance (0.L.2); round-robin iceberg.nexus.lab" }
       - { name: iceberg-rest-2, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.148, vmnet11: 192.168.70.148, dir: H:\VMS\NexusPlatform\08-spark\iceberg-rest-2, role: "Iceberg REST catalog HA instance (0.L.2)" }
       - { name: iceberg-pg-1,   os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 60,  vmnet10: 192.168.10.149, vmnet11: 192.168.70.149, dir: H:\VMS\NexusPlatform\08-spark\iceberg-pg-1,   role: "Iceberg catalog PostgreSQL PRIMARY (0.L.2); streaming repl + keepalived VIP .151" }
       - { name: iceberg-pg-2,   os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 60,  vmnet10: 192.168.10.150, vmnet11: 192.168.70.150, dir: H:\VMS\NexusPlatform\08-spark\iceberg-pg-2,   role: "Iceberg catalog PostgreSQL REPLICA (0.L.2)" }
       # JupyterHub (.152) deferred (post-0.L app-project work).
+      - { name: spark-master-2, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.153, vmnet11: 192.168.70.153, dir: H:\VMS\NexusPlatform\08-spark\spark-master-2, role: "Spark standalone master (0.L.3 HA standby; ZK-elected w/ spark-master-1)" }
+      - { name: spark-worker-3, os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.154, vmnet11: 192.168.70.154, dir: H:\VMS\NexusPlatform\08-spark\spark-worker-3, role: "Spark standalone worker (0.L.3)" }
+      - { name: zookeeper-1,    os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.155, vmnet11: 192.168.70.155, dir: H:\VMS\NexusPlatform\08-spark\zookeeper-1,    role: "Apache ZooKeeper ensemble (0.L.3); coordinates Spark master HA; backplane-only" }
+      - { name: zookeeper-2,    os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.156, vmnet11: 192.168.70.156, dir: H:\VMS\NexusPlatform\08-spark\zookeeper-2,    role: "Apache ZooKeeper ensemble (0.L.3); backplane-only" }
+      - { name: zookeeper-3,    os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.157, vmnet11: 192.168.70.157, dir: H:\VMS\NexusPlatform\08-spark\zookeeper-3,    role: "Apache ZooKeeper ensemble (0.L.3); backplane-only" }
 
   platform-tools:
     purpose: Harbor registry (Phase 0.L.4, repo nexus-infra-registry) + future Prefect/Unleash/Marquez/Backstage (0.I/0.J/0.K)
