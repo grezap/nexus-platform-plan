@@ -105,7 +105,7 @@ VMnet10 third octet encodes cluster role so that IPs read as cluster identity:
 | 10.80.x | Redis cluster · MM2 · REST Proxy | .81–.89 | .81–.89 |
 | 10.90.x | obs stack · Schema Registry · Connect · ksqlDB | .85–.98 | .85–.98 |
 | 10.10.111+ | Swarm managers | .111–.113 | .111–.113 |
-| 10.10.115+ | Platform tools — registry-1 (Harbor) `.115` (Phase 0.L.4); prefect/unleash/marquez/backstage `.116`–`.119` (future 0.I/0.J/0.K) | .115–.119 | same |
+| 10.10.115+ | **Platform tools (`09-platform`)** — Harbor registry HA (Phase 0.L.4, ADR-0036): app `registry-1`/`registry-2` `.115`/`.116`; datastore `registry-pg-1`/`registry-pg-2` `.117`/`.118`; **datastore VIP `registry-db.nexus.lab .119`** (VRRP). Future prefect/unleash/marquez/backstage moved to `.125`–`.128` (0.I/0.J/0.K) — `.116`–`.119` now consumed by registry HA | .115–.119 · .125–.128 | .115–.118 (VIP `.119` VMnet11-only) |
 | 10.10.121+ | Vault cluster | .121–.123 | .121–.123 |
 | 10.10.131+ | Swarm workers | .131–.133 | .131–.133 |
 | 10.10.14x–15x | **Lakehouse (`08-spark`, Phase 0.L)** — spark-master-1 `.140`; MinIO `.141`–`.144`; spark-worker-1/2 `.145`/`.146`; iceberg-rest `.147`/`.148`; iceberg-pg `.149`/`.150`; **catalog-DB VIP `.151`** (VRRP); JupyterHub `.152` (future); spark-master-2 `.153`; spark-worker-3 `.154`; ZooKeeper `.155`–`.157` | .140–.157 | .140–.157 (VMnet10 backplane; VIP `.151` is VMnet11-only) |
@@ -160,6 +160,8 @@ Complete VM → IP map lives in [`vms.yaml`](./vms.yaml).
   - `iceberg.nexus.lab` → Nessie REST nodes `.147`/`.148` (Phase 0.L.2; Iceberg REST API HTTPS `:19120` — two stateless catalog instances, any one serves any request; per-host `iceberg-server` PKI certs carry this name in their SANs)
   - `iceberg-db.nexus.lab` → catalog-DB **VRRP VIP `.151`** (Phase 0.L.2; PostgreSQL `:5432` — keepalived floats the VIP to the current master of the iceberg-pg `.149`/`.150` master-replica pair; the PG leaf cert IP-SANs/SAN carry this name + `.151`)
   - `spark-master.nexus.lab` → the 2 Spark HA masters `.140`/`.153` (Phase 0.L.3; round-robin for the Web UI `:8080` — the Spark cluster's multi-master URL `spark://…:7077,…:7077` uses node IPs, and ZooKeeper `.155`–`.157` elects the live master). ZooKeeper has no VMnet11 DNS — it is backplane-IP-only by design.
+  - `registry.nexus.lab` → the 2 Harbor HA app nodes `.115`/`.116` (Phase 0.L.4; HTTPS `:443` — two stateless Harbor instances, any one serves any push/pull; per-host `registry-server` PKI certs carry this name in their SANs; ADR-0036)
+  - `registry-db.nexus.lab` → registry datastore **VRRP VIP `.119`** (Phase 0.L.4; PostgreSQL `:5432` + Redis `:6379` — keepalived floats the VIP to the current primary of the registry-pg `.117`/`.118` master-replica pair; the PG leaf cert SAN/IP-SANs carry this name + `.119`)
 
 ### Analytics-tier MAC reservations (VMnet11 dhcp-host)
 
@@ -192,15 +194,20 @@ use the same sixth byte with fifth byte `01`. Primary MAC plan (`00:50:56:3F:00:
 | minio-4        | .144 | `9D` | iceberg-pg-2   | .150 | `A3` |
 | spark-worker-1 | .145 | `9E` | (catalog-DB VIP `.151` — VRRP, no MAC) | | |
 
-The StarRocks shared-data/CN tier (Phase 0.L.5, extends `04-analytics`) reserves
-`A4`–`A9`: registry-1 (Harbor, `09-platform`) `.115` `A4`, then SR FE
-`.37`/`.38`/`.39` + CN `.30`/`.40` (the CN-2 `.40` is a documented spillover into
-the first free ClickHouse-decade slot, because the StarRocks `.3x` decade had only
-4 free slots and Greg chose full-HA 3 FE + 2 CN).
+The `A4`–`A9` block: `A4` = **registry-1** (Harbor app node 1, `09-platform`)
+`.115`; `A5`–`A9` reserved for the StarRocks shared-data/CN tier (Phase 0.L.5,
+extends `04-analytics`) — SR FE `.37`/`.38`/`.39` + CN `.30`/`.40` (the CN-2 `.40`
+is a documented spillover into the first free ClickHouse-decade slot, because the
+StarRocks `.3x` decade had only 4 free slots and Greg chose full-HA 3 FE + 2 CN).
 
-The **0.L.3 Spark HA expansion** continues the block at `AA`–`AE` (after the
-`A4`–`A9` reservation): spark-master-2 `.153` `AA`, spark-worker-3 `.154` `AB`,
-zookeeper-1/2/3 `.155`/`.156`/`.157` `AC`/`AD`/`AE`.
+The **0.L.3 Spark HA expansion** continues the block at `AA`–`AE`: spark-master-2
+`.153` `AA`, spark-worker-3 `.154` `AB`, zookeeper-1/2/3 `.155`/`.156`/`.157`
+`AC`/`AD`/`AE`.
+
+The **0.L.4 registry HA expansion** (ADR-0036) takes the next free MACs `AF`–`B1`:
+registry-2 `.116` `AF`, registry-pg-1 `.117` `B0`, registry-pg-2 `.118` `B1`
+(registry-1 keeps `A4`). The datastore VRRP VIP `registry-db.nexus.lab .119` has
+no MAC. MAC high-water is now `B1`.
 
 ## Firewall posture
 

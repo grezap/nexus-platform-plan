@@ -20,9 +20,12 @@ each row links to the canonical detail.
 | **01-foundation** | `nexus-infra-vmware` (`envs/foundation` + `envs/security`) | `dc-nexus`, `nexus-jumpbox`, `vault-1/2/3`, `vault-transit` (6) | 0.C.1-0.D.5 |
 | **06-orchestration** | `nexus-infra-swarm-nomad` (`envs/swarm-nomad`) | `swarm-manager-1/2/3`, `swarm-worker-1/2/3` (6) | 0.E |
 | **03-kafka** | `nexus-infra-kafka` (`envs/kafka`) | `kafka-east-1/2/3`, `kafka-west-1/2/3`, `schema-registry-1/2`, `kafka-rest-1`, `kafka-connect-1/2`, `ksqldb-1/2`, `mm2-1/2` (15) | 0.H |
-| **05-oltp** | `nexus-infra-oltp` (per-cluster envs: `envs/oltp-redis`, `envs/oltp-mongo`, `envs/oltp-percona`, `envs/oltp-patroni`) | `redis-1..6` (6) · `mongo-1/2/3` (3) · `pxc-1/2/3` + `proxysql-1/2` (5) · `pg-primary` + `pg-replica-1/2` + `etcd-1/2/3` + `haproxy-pg-1/2` (8) — VRRP VIPs `.50` (proxysql) + `.60` (haproxy-pg). **22 of 25 cold-rebuild proven**; SQL Server FCI+AG (`sql-1/2/3`) deferred to 0.G.7. | 0.G.1-0.G.4 |
+| **05-oltp** | `nexus-infra-oltp` (per-cluster envs: `envs/oltp-redis`, `envs/oltp-mongo`, `envs/oltp-percona`, `envs/oltp-patroni`) | `redis-1..6` (6) · `mongo-1/2/3` (3) · `pxc-1/2/3` + `proxysql-1/2` (5) · `pg-primary` + `pg-replica-1/2` + `etcd-1/2/3` + `haproxy-pg-1/2` (8) — VRRP VIPs `.50` (proxysql) + `.60` (haproxy-pg). | 0.G.1-0.G.4 |
+| **04-analytics** | `nexus-infra-analytics` (`envs/analytics-clickhouse`, `envs/analytics-starrocks`) | ClickHouse: `ch-keeper-1/2/3` + `ch-shard{1,2,3}-rep{1,2}` (9) · StarRocks: `sr-fe-{leader,follower-1,follower-2}` + `sr-be-1/2/3` (6) | 0.G.5-0.G.6 |
+| **08-spark** | `nexus-infra-lakehouse` (`envs/lakehouse-minio`, `envs/lakehouse-iceberg`, `envs/lakehouse-spark`) | MinIO `minio-1..4` (4) · Iceberg `iceberg-rest-1/2` + `iceberg-pg-1/2` + VIP `.151` (4) · Spark `spark-master-1/2` + `spark-worker-1/2/3` + `zookeeper-1/2/3` (8) | 0.L.1-0.L.3 |
+| **09-platform** | `nexus-infra-registry` (`envs/registry-harbor`) | Harbor app `registry-1/2` (2) · datastore `registry-pg-1/2` + VRRP VIP `registry-db .119` (2) | 0.L.4 |
 
-**Total: 50 VMs cold-rebuild proven (2026-05-19). All tiers tagged on their repos; OLTP tier closes when 0.G.7 lands the SQL Server cluster (53 VMs final).**
+**Total: 82 VMs (cold-rebuild proven per tier). All sealed tiers tagged on their repos; OLTP closes when 0.G.7 lands the SQL Server cluster; lakehouse/registry close at 0.L.6.**
 
 ## Per-tier from-zero replay matrix
 
@@ -41,6 +44,8 @@ verification, and the selective-ops examples.
 | **The OLTP MongoDB Replica Set** (3-node MongoDB 8.0 RS, keyFile + Vault-issued mTLS) | [`nexus-infra-oltp/docs/handbook.md` §2 — MongoDB RS from zero](https://github.com/grezap/nexus-infra-oltp/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** | ~10-15 min |
 | **The OLTP Percona PXC + ProxySQL HA pair** (3-node Percona XtraDB Cluster + 2-node ProxySQL with VRRP VIP `192.168.70.50`, mTLS) | [`nexus-infra-oltp/docs/handbook.md` §3 — PXC + ProxySQL from zero](https://github.com/grezap/nexus-infra-oltp/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** | ~15-20 min |
 | **The OLTP Patroni Postgres HA cluster** (3-node Patroni + PG 17 + 3-node etcd 3.5 DCS + 2-node HAProxy 3 HA pair with VRRP VIP `192.168.70.60`, mTLS) | [`nexus-infra-oltp/docs/handbook.md` §3 — Patroni cluster from zero + §3.4 the 18-transient chronology](https://github.com/grezap/nexus-infra-oltp/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** | ~20-30 min |
+| **The lakehouse tier** (MinIO distributed EC + Iceberg/Nessie REST + dedicated PG HA + Spark HA + ZooKeeper, mTLS) | [`nexus-infra-lakehouse/docs/handbook.md` §1 — Phase walkthrough (§1.1 MinIO · §1.7 Iceberg · §1.13 Spark)](https://github.com/grezap/nexus-infra-lakehouse/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** (sub-phases layer: Iceberg + Spark need MinIO up) | ~40-60 min (all 3) |
+| **The registry tier** (HA Harbor: 2 app nodes round-robin + dedicated PG/Redis HA + VRRP VIP; MinIO S3 blobs; Trivy + cosign; Vault OIDC) | [`nexus-infra-registry/docs/handbook.md` §1 — Phase walkthrough + §3.2 the 7-transient chronology](https://github.com/grezap/nexus-infra-registry/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** + **MinIO (0.L.1) alive** (the S3 blob backend) | ~18-25 min |
 
 ## Selective ops index — "set up only X"
 

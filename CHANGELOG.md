@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 0.L.4 Harbor registry HA SEALED (2026-05-25)
+
+- **New tier `09-platform` (`nexus-infra-registry`) — HA Harbor SEALED.** Live-ratified + cold-rebuild-proven (`smoke-0.L.4.ps1` 41/41 GREEN; 7 apply-time transients fixed in source). 2 stateless Harbor app nodes (`registry-1/2`, round-robin DNS `registry.nexus.lab`, ADR-0031) + a dedicated PostgreSQL 17 + Redis master-replica HA datastore (`registry-pg-1/2`, keepalived VRRP VIP `registry-db.nexus.lab .119`); **image blobs in MinIO S3** (the 0.L.1 object store); Trivy scanning + cosign signing; **Vault OIDC SSO** (Vault `identity/oidc` provider → AD via auth/ldap). mTLS via per-host Vault PKI; Harbor 2.14.4 offline installer.
+- **[ADR-0036](docs/adr/ADR-0036-harbor-registry-ha.md)** — registry HA topology (the HA+bundled-datastore contradiction resolved to a dedicated registry-tier PG/Redis HA pair) + ADR index row.
+- **MASTER-PLAN.md** `0.L` row + **`docs/infra/vms.yaml`** (registry tier 4 VMs, vm_count 78→82, registry-1 disk 400→80, future platform tools shifted to `.125`-`.128`) + **`docs/infra/network.md`** (registry IP plan `.115`-`.119`, MACs `A4`/`AF`/`B0`/`B1`, DNS round-robin + VIP) + **`docs/glossary.md`** (Harbor/Trivy/cosign expanded for HA, `.local`→`.lab` fix) + **`docs/setup-guides.md`** (analytics/lakehouse/registry tiers + replay rows; total 82) + **`docs/demos/`** (DEMO-17 registry + DEMO-16 lakehouse backfill).
+
 ### Added — Phase 0.G.7 SQL Server FCI + Always On AG LIVE-RATIFIED (2026-05-22)
 
 - **OLTP tier SEALED 5/5 — SQL Server FCI + AG live-ratified.** 4 ws2025-desktop nodes: a 2-node WSFC Failover Cluster Instance (`sqlfci` @ `.70.16`, sharing an iSCSI LUN from `nexus-gateway` as a clustered Physical Disk) + 2 standalone Always On AG async replicas (`sql-ag-rep-1/2`). AG `nexus-ag` = FCI primary + both replicas SYNCHRONIZING + HEALTHY (`nexus_demo` MANUAL-seeded); AG Listener `sql-ag-listener` @ `.70.17` proven under strict TLS (remote domain client `sqlcmd -E -N` → primary). `smoke-0.G.7.ps1` **ALL GREEN 56/56**.

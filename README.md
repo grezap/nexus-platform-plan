@@ -50,12 +50,15 @@ Changes to canon (network, enhancements, gates) land here first, then propagate 
 - **Phase 0.G.7 (SQL Server FCI + Always On AG) ✅ LIVE-RATIFIED 2026-05-22**, **4 ws2025-desktop nodes** (2-node FCI `sqlfci` @ `.70.16` sharing an iSCSI LUN from nexus-gateway + 2 async AG replicas; AG Listener `sql-ag-listener` @ `.70.17`): `smoke-0.G.7.ps1` **56/56 ALL GREEN**. First Windows-fleet data cluster + first real GMSA consumer + first iSCSI shim. 40+ ratification transients fixed in source (handbook §3.5b + §3.5c). **OLTP tier SEALED (5/5).**
 - **Phase 0.G analytics tier ✅ SEALED 2026-05-23** — `grezap/nexus-infra-analytics` tagged `v0.1.0`: ClickHouse (0.G.5, 3 shards × 2 replicas + 3 Keeper) + StarRocks (0.G.6, 3 FE + 3 BE shared-nothing) both live-ratified **and cold-rebuild-proven** (`smoke-0.G.5.ps1` 129/129 · `smoke-0.G.6.ps1` 73/73 GREEN). **Phase 0.G data tier COMPLETE** (OLTP `v0.1.0` + analytics `v0.1.0`).
 
-### Roadmap (status 2026-05-23)
+### Roadmap (status 2026-05-25)
 
 ```
 INFRASTRUCTURE
   1. 0.G.5/0.G.6  Analytics (ClickHouse + StarRocks)        ✅ DONE (nexus-infra-analytics v0.1.0)
-  2. 0.L          Spark + Iceberg + MinIO + Harbor          ← NEXT
+  2. 0.L          Lakehouse + registry                      ◐ IN PROGRESS
+       0.L.1 MinIO · 0.L.2 Iceberg · 0.L.3 Spark            ✅ SEALED (nexus-infra-lakehouse)
+       0.L.4 Harbor HA                                      ✅ SEALED (nexus-infra-registry; ADR-0036)
+       0.L.5 StarRocks shared-data/CN · 0.L.6 close-out     ← NEXT
   3. 0.I          Observability (LAST — monitors full fleet)
   4. 0.M          2nd AD DC (foundation HA)
   5. 0.N          MongoDB sharded cluster (extends nexus-infra-oltp)

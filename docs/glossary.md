@@ -307,16 +307,16 @@ Part of the Prometheus stack. **Routes Prometheus-fired alerts** to channels (Sl
 ## 8. Platform & supply chain
 
 ### Harbor
-A **self-hosted container registry**. Replaces Docker Hub for private + air-gapped use. Built-in vulnerability scanning, image signing, replication.
-*In NexusPlatform:* every Docker image built by CI is pushed to `registry-1.nexus.local`.
+A **self-hosted container registry**. Replaces Docker Hub for private + air-gapped use. Built-in vulnerability scanning, image signing, replication, RBAC, and OIDC SSO.
+*In NexusPlatform:* every Docker image built by CI is pushed to **`registry.nexus.lab`** — a **highly-available** Harbor (Phase 0.L.4, tier `09-platform`, ADR-0036): 2 stateless app nodes behind round-robin DNS, backed by a dedicated PostgreSQL + Redis master-replica HA pair (keepalived VRRP VIP), with **image layers stored in MinIO S3** (the 0.L.1 object store), Trivy scanning, cosign signing, and **Vault OIDC** single sign-on. Deployed via Harbor's official docker-compose installer.
 
 ### Trivy
 A **vulnerability scanner** for container images and binaries. Reads an image's contents, looks up known CVEs in distro packages and language packages.
-*In NexusPlatform:* runs in Harbor on every image push; CI fails if HIGH or CRITICAL vulnerabilities appear.
+*In NexusPlatform:* runs as a Harbor component (`--with-trivy`) and scans on every image push; CI fails if HIGH or CRITICAL vulnerabilities appear.
 
 ### cosign (Sigstore)
 A tool for **signing and verifying container images**. Cryptographic provenance answering "did *we* build this image, or was it replaced?"
-*In NexusPlatform:* every CI-built image is cosign-signed; deployments verify signatures before pulling.
+*In NexusPlatform:* every CI-built image is cosign-signed and Harbor surfaces the signature; deployments verify signatures before pulling (the 0.L.4 exit gate signs + verifies a pushed image).
 
 ### Backstage (Spotify)
 An **internal developer portal**. A web UI listing all your services, owners, dependencies, docs, and runbooks — sourced from a YAML catalog file in each repo.

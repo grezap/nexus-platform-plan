@@ -1,6 +1,6 @@
 # Demo Playbooks — Index
 
-Fourteen guided scenarios that show NexusPlatform working. Each is a self-contained tour of a real workflow — no staged screenshots, no rehearsed videos. The scenarios are the acceptance evidence for the portfolio.
+Seventeen guided scenarios that show NexusPlatform working. Each is a self-contained tour of a real workflow — no staged screenshots, no rehearsed videos. The scenarios are the acceptance evidence for the portfolio.
 
 ## Scenario catalog
 
@@ -21,6 +21,8 @@ Fourteen guided scenarios that show NexusPlatform working. Each is a self-contai
 | [DEMO-13](./DEMO-13.md) | Chaos: kill a broker, survive gracefully | streamcore · infra | CTO | 6 min | planned |
 | [DEMO-14](./DEMO-14.md) | Traverse a single order's entire journey | META — all 14 projects | recruiter | 10 min | planned |
 | [DEMO-15](./DEMO-15.md) | Analytics warehouse: sharded + replicated, survive a node loss | analytics infra (ClickHouse + StarRocks) | data-architect · CTO | 7 min | planned |
+| [DEMO-16](./DEMO-16.md) | Lakehouse: object store + table format + compute, survive a node loss | lakehouse infra (MinIO + Iceberg + Spark) | data-architect | 8 min | planned |
+| [DEMO-17](./DEMO-17.md) | Container registry: push, scan, sign — survive a node loss | registry infra (Harbor HA) | CTO · DevOps | 6 min | planned |
 
 ## Playbook template enforcement
 
@@ -53,8 +55,8 @@ Recordings are produced by the build; no human captures video manually.
 The portfolio website's Live Tour groups scenarios by persona:
 
 - **Recruiter tour** — DEMO-11 · DEMO-14 · DEMO-03 (highest "wow", lowest prerequisite).
-- **CTO tour** — DEMO-08 · DEMO-13 · DEMO-15 · DEMO-10 · DEMO-03 (failure modes, operations).
-- **Data architect tour** — DEMO-01 · DEMO-12 · DEMO-15 · DEMO-06 · DEMO-09 (data flow + analytics depth).
+- **CTO tour** — DEMO-08 · DEMO-13 · DEMO-15 · DEMO-17 · DEMO-10 · DEMO-03 (failure modes, operations).
+- **Data architect tour** — DEMO-01 · DEMO-12 · DEMO-15 · DEMO-16 · DEMO-06 · DEMO-09 (data flow + analytics depth).
 - **AI-forward tour** — DEMO-04 · DEMO-02 · DEMO-05 · DEMO-07 (ML under the hood).
 
 Each tour stitches the recordings back-to-back with transition cards between them.

@@ -3,8 +3,8 @@
 # Source of truth for nexus-infra-vmware Terraform modules.
 
 metadata:
-  updated: 2026-05-23
-  vm_count: 78          # +11 net at Phase 0.L: the lakehouse tier (08-spark) = 16 VMs (4 MinIO + 2 Spark masters + 3 Spark workers + 3 ZooKeeper + 2 iceberg-rest + 2 iceberg-pg). 0.L.3 added the 2nd Spark master + 3rd worker + the 3-node ZooKeeper ensemble (Spark HA). 0.L.5 will add 5 StarRocks shared-data nodes (04-analytics) when it lands.
+  updated: 2026-05-25
+  vm_count: 82          # +4 at Phase 0.L.4: the registry tier (09-platform, nexus-infra-registry) = 4 VMs (2 Harbor app HA + 2 PG/Redis datastore HA) + 1 VRRP VIP (registry-db .119, not a VM). Prior 78 = the lakehouse tier (08-spark) 16 VMs (4 MinIO + 2 Spark masters + 3 Spark workers + 3 ZooKeeper + 2 iceberg-rest + 2 iceberg-pg) through 0.L.3. 0.L.5 will add 5 StarRocks shared-data nodes (04-analytics) when it lands.
   host: 10.0.70.101
   hypervisor: VMware Workstation Pro 17.5+
   plan_version: v0.1.5
@@ -306,14 +306,23 @@ clusters:
       - { name: zookeeper-3,    os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.157, vmnet11: 192.168.70.157, dir: H:\VMS\NexusPlatform\08-spark\zookeeper-3,    role: "Apache ZooKeeper ensemble (0.L.3); backplane-only" }
 
   platform-tools:
-    purpose: Harbor registry (Phase 0.L.4, repo nexus-infra-registry) + future Prefect/Unleash/Marquez/Backstage (0.I/0.J/0.K)
-    phase: 0.L.4 (registry-1) / 0.I-0.K (rest)
+    purpose: Harbor registry HA (Phase 0.L.4, repo nexus-infra-registry; ADR-0036) + future Prefect/Unleash/Marquez/Backstage (0.I/0.J/0.K)
+    phase: 0.L.4 (registry HA: 4 VMs + VIP) / 0.I-0.K (rest)
     nodes:
-      - { name: registry-1,     os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 400, vmnet10: 192.168.10.115, vmnet11: 192.168.70.115, dir: H:\VMS\NexusPlatform\09-platform\registry-1,     role: "Harbor (docker-compose) + Trivy + Vault OIDC (0.L.4)" }
-      - { name: prefect-server, os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 80,  vmnet10: 192.168.10.116, vmnet11: 192.168.70.116, dir: H:\VMS\NexusPlatform\09-platform\prefect-server, role: "Prefect 3 OSS self-host (future)" }
-      - { name: unleash-1,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.117, vmnet11: 192.168.70.117, dir: H:\VMS\NexusPlatform\09-platform\unleash-1,      role: "Unleash feature flags (future)" }
-      - { name: marquez,        os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.118, vmnet11: 192.168.70.118, dir: H:\VMS\NexusPlatform\09-platform\marquez,        role: "Marquez (OpenLineage UI) (future)" }
-      - { name: backstage,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.119, vmnet11: 192.168.70.119, dir: H:\VMS\NexusPlatform\09-platform\backstage,      role: "Backstage service catalog (optional, future)" }
+      # Harbor application HA pair (stateless; round-robin DNS registry.nexus.lab; blobs in MinIO S3).
+      # registry-1 disk right-sized 400->80 GB vs the original single-node local-blob spec: image
+      # LAYERS live in MinIO S3 (ADR-0036), so the app node only holds Harbor's own component images.
+      - { name: registry-1,     os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 80,  vmnet10: 192.168.10.115, vmnet11: 192.168.70.115, dir: H:\VMS\NexusPlatform\09-platform\registry-1,     role: "Harbor app HA node 1 (docker-compose + Trivy; 0.L.4)" }
+      - { name: registry-2,     os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 80,  vmnet10: 192.168.10.116, vmnet11: 192.168.70.116, dir: H:\VMS\NexusPlatform\09-platform\registry-2,     role: "Harbor app HA node 2 (docker-compose + Trivy; 0.L.4)" }
+      # Dedicated datastore HA pair: PostgreSQL 17 master-replica + co-located Redis; keepalived VRRP VIP.
+      - { name: registry-pg-1,  os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 60,  vmnet10: 192.168.10.117, vmnet11: 192.168.70.117, dir: H:\VMS\NexusPlatform\09-platform\registry-pg-1,  role: "Harbor datastore PostgreSQL PRIMARY + Redis master (0.L.4)" }
+      - { name: registry-pg-2,  os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 60,  vmnet10: 192.168.10.118, vmnet11: 192.168.70.118, dir: H:\VMS\NexusPlatform\09-platform\registry-pg-2,  role: "Harbor datastore PostgreSQL REPLICA + Redis replica (0.L.4)" }
+      # registry-db.nexus.lab .119 = keepalived VRRP VIP (floats to the current datastore primary; no VM).
+      # Future platform tools moved off .116-.119 (consumed by registry HA) to the free .125-.128 band.
+      - { name: prefect-server, os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 80,  vmnet10: 192.168.10.125, vmnet11: 192.168.70.125, dir: H:\VMS\NexusPlatform\09-platform\prefect-server, role: "Prefect 3 OSS self-host (future)" }
+      - { name: unleash-1,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.126, vmnet11: 192.168.70.126, dir: H:\VMS\NexusPlatform\09-platform\unleash-1,      role: "Unleash feature flags (future)" }
+      - { name: marquez,        os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.127, vmnet11: 192.168.70.127, dir: H:\VMS\NexusPlatform\09-platform\marquez,        role: "Marquez (OpenLineage UI) (future)" }
+      - { name: backstage,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.128, vmnet11: 192.168.70.128, dir: H:\VMS\NexusPlatform\09-platform\backstage,      role: "Backstage service catalog (optional, future)" }
 
   windows-workstations:
     purpose: Developer Windows 11 workstation for MAUI / nexus-desk test
