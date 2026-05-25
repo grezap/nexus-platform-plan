@@ -7,7 +7,7 @@ The meta-scenario. A single customer order is placed in `nexus-platform`; it flo
 ## 2. Runtime + prerequisites
 
 - **Environment target** — `full` (suspend/resume between clusters as needed)
-- **VMs required** — effectively all 65 VMs across foundation, sqlserver, kafka-east, analytics, oltp, swarm, spark, platform-tools, windows-workstations
+- **VMs required** — effectively the whole built fleet (88 VMs through 0.L.4) across foundation, swarm, kafka, oltp (incl. sqlserver), analytics, lakehouse (08-spark), registry (09-platform)
 - **External services** — every Kafka topic, every primary store, Iceberg catalog, Trino
 - **Seed data** — `nexus-cli seed all --profile=meta`
 - **Expected duration** — 10 min

@@ -9,7 +9,7 @@
 
 ## Context
 
-The NexusPlatform 66-VM lab runs multiple Windows guests (non-optional):
+The NexusPlatform lab (88 VMs through Phase 0.L.4) runs multiple Windows guests (non-optional):
 
 - `dc-nexus` — **Windows Server 2025 Desktop Experience** (AD DC + DNS + RSAT host)
 - SQL Server FCI + AG nodes — **Windows Server 2025 Desktop Experience** (SQL Server 2025 Developer Edition; FCI + Always On AG; live-ratified Phase 0.G.7 2026-05-22)

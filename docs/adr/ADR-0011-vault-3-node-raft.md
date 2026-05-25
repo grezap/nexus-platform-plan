@@ -9,7 +9,7 @@
 
 ## Context
 
-Phase 0.D's exit gate calls for "3-node Vault Raft, AppRole, KV-v2 `nexus/*` paths." The lab fleet (~66 VMs) needs a single secrets store for: AD bootstrap creds, Windows product keys (per ADR-0144), DB connection strings, OAuth client secrets, mTLS leaf certs (post-0.D.2), and Vault-managed password rotation for AD service accounts.
+Phase 0.D's exit gate calls for "3-node Vault Raft, AppRole, KV-v2 `nexus/*` paths." The lab fleet (88 VMs built through Phase 0.L.4) needs a single secrets store for: AD bootstrap creds, Windows product keys (per ADR-0144), DB connection strings, OAuth client secrets, mTLS leaf certs (post-0.D.2), and Vault-managed password rotation for AD service accounts.
 
 Three deployment shapes were considered:
 

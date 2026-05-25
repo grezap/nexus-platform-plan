@@ -30,7 +30,7 @@ These are hard limits of the platform — not choices. They shape the canon.
 
 ## `nexus-gateway` — the lab edge router
 
-VMnet11 is Host-Only at the VMware layer. Internet egress for all 54 lab VMs (50 currently live + 4 SQL Server FCI+AG nodes scaffolded at Phase 0.G.7; OLTP tier sealed 2026-05-20 with all 5 OLTP clusters scaffolded) is provided by a dedicated Linux router VM (`nexus-gateway`), which is **VM #0** of the fleet — built before any other lab VM so that apt/yum/apt pulls and Docker image fetches just work. nexus-gateway also hosts an iSCSI target (tgt) serving the FCI shared LUN per ADR-0026, in addition to its existing NFSv4 export for Portainer.
+VMnet11 is Host-Only at the VMware layer. Internet egress for all lab VMs (88 built/cold-rebuild-proven through Phase 0.L.4 — foundation + orchestration + Kafka + OLTP 5/5 + analytics + lakehouse + registry) is provided by a dedicated Linux router VM (`nexus-gateway`), which is **VM #0** of the fleet — built before any other lab VM so that apt/yum/apt pulls and Docker image fetches just work. nexus-gateway also hosts an iSCSI target (tgt) serving the FCI shared LUN per ADR-0026, plus NFSv4 exports (Portainer + analytics backups), and S3 (MinIO, 0.L.1) backs the lakehouse warehouse + the Harbor registry blobs.
 
 | Attribute | Value |
 |---|---|

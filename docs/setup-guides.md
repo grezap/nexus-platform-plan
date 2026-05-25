@@ -12,7 +12,7 @@ cross-env operator order · §1.3 apply · §1.4 verify · §1.5 selective ops �
 §1.6 destroy · §3.1 cold-rebuild canon. This page is the cross-tier index;
 each row links to the canonical detail.
 
-## Inventory — what the lab has built so far (50 VMs cold-rebuild proven across 5 tiers, 53 planned)
+## Inventory — what the lab has built so far (88 VMs cold-rebuild proven across 8 tiers, through Phase 0.L.4)
 
 | Tier | Repo | VMs | Phase |
 |---|---|---|---|
@@ -25,7 +25,7 @@ each row links to the canonical detail.
 | **08-spark** | `nexus-infra-lakehouse` (`envs/lakehouse-minio`, `envs/lakehouse-iceberg`, `envs/lakehouse-spark`) | MinIO `minio-1..4` (4) · Iceberg `iceberg-rest-1/2` + `iceberg-pg-1/2` + VIP `.151` (4) · Spark `spark-master-1/2` + `spark-worker-1/2/3` + `zookeeper-1/2/3` (8) | 0.L.1-0.L.3 |
 | **09-platform** | `nexus-infra-registry` (`envs/registry-harbor`) | Harbor app `registry-1/2` (2) · datastore `registry-pg-1/2` + VRRP VIP `registry-db .119` (2) | 0.L.4 |
 
-**Total: 82 VMs (cold-rebuild proven per tier). All sealed tiers tagged on their repos; OLTP closes when 0.G.7 lands the SQL Server cluster; lakehouse/registry close at 0.L.6.**
+**Total: 88 VMs (cold-rebuild proven per tier, through Phase 0.L.4). All sealed tiers tagged on their repos; lakehouse + registry close out at 0.L.6 (tags). Phase 0.I observability (obs-metrics/tracing/logging) + the future platform tools + the 0.M-0.P sharding tiers are not yet built.**
 
 ## Per-tier from-zero replay matrix
 
@@ -96,7 +96,7 @@ canonical handbook section; this page just gives you the order.
 # create VMnet10 + VMnet11, load the lab SSH key into ssh-agent.
 # See: nexus-infra-vmware/docs/handbook.md §0.
 
-# Then build every Packer template the 50-VM fleet needs (~60-90 min total):
+# Then build every Packer template the fleet needs (per-engine templates across all tiers; ~2-3 h total):
 cd nexus-infra-vmware\packer\deb13          && packer init . && packer build .
 cd ..\ws2025-desktop                         && packer init . && packer build .
 cd ..\vault                                  && packer init . && packer build .
@@ -168,11 +168,13 @@ pwsh -File scripts\oltp.ps1 smoke -Phase 0.G.4        # 152/152 ALL GREEN
 cd ..
 ```
 
-**Total wall-clock for a true cold rebuild of the whole 50-VM lab:** ~5 hours
-(dominated by Packer builds the first time — 8 templates total including the 5
-per-engine OLTP templates; subsequent rebuilds reuse the templates and run in
-~3 hours). Per the per-cluster + per-engine canon, the 4 OLTP envs can be applied
-in parallel from separate shells if the host has the headroom.
+**Total wall-clock for a true cold rebuild of the whole 88-VM lab:** the dominant
+cost is the first-time Packer builds (one per-engine template per cluster across
+all tiers); subsequent rebuilds reuse the templates. Per the per-cluster +
+per-engine canon, independent envs can be applied in parallel from separate
+shells if the host has the headroom, and tiers are normally rebuilt one at a time
+(only the current sub-phase's VMs + the 6-VM foundation base run at once, per the
+minimal-running-VMs rule).
 
 ## Where the per-tier deep canon lives
 

@@ -29,7 +29,7 @@ The binding constraint is the same one that shapes the whole lab: **build-host R
 
 ### Positive
 
-- **Half the VM count.** 6 broker VMs instead of 12+; the saved RAM/disk/CPU budget goes to the ecosystem tier and the rest of the 66-VM lab.
+- **Half the VM count.** 6 broker VMs instead of 12+; the saved RAM/disk/CPU budget goes to the ecosystem tier and the rest of the lab.
 - **Forward-compatible.** KRaft is the only mode that survives the Kafka 4.0 cut; no ZooKeeper migration debt is ever incurred.
 - **Simpler bring-up.** One Packer template, one firstboot path, one role unit for the brokers — no separate ZooKeeper template/role/quorum to coordinate before Kafka can start.
 - **Self-contained quorum.** Controller election is internal to the three broker VMs; there is no external dependency to fail.

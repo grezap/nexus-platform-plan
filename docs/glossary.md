@@ -27,7 +27,7 @@ The first cut covers **infrastructure tools** (Phase 0.A–0.L) — the foundati
 
 ### VMware Workstation Pro
 A **type-2 desktop hypervisor** for Windows and Linux hosts. Runs multiple guest VMs on a single physical machine, with virtual networks isolating them from each other. Free for personal use as of 2024.
-*In NexusPlatform:* hosts the entire 66-VM lab on one Windows 11 workstation (`10.0.70.101`).
+*In NexusPlatform:* hosts the entire lab (88 VMs built through Phase 0.L.4, growing toward ~100) on one Windows 11 workstation (`10.0.70.101`).
 *Common alternatives:* VirtualBox (free, less stable under heavy load), Hyper-V (Windows-only).
 
 ### Packer (HashiCorp)
