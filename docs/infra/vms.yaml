@@ -3,8 +3,8 @@
 # Source of truth for nexus-infra-vmware Terraform modules.
 
 metadata:
-  updated: 2026-05-25
-  vm_count: 93          # built/cold-rebuild-proven through Phase 0.L.5 (count of the built rows below): edge 1 + foundation 5 (dc-nexus + vault-1/2/3 + vault-transit) + swarm 6 + kafka 15 + oltp 26 (redis 6 + mongo 3 + percona 5 + postgres 8 + sqlserver 4) + analytics 20 (clickhouse 9 + starrocks sn 6 + starrocks-sd 5) + lakehouse 16 + registry 4. The other 8 rows in this file are NOT yet built: foundation obs-{metrics,tracing,logging} (Phase 0.I observability) + platform-tools prefect/unleash/marquez/backstage (future 0.I/0.J/0.K) + windows-workstations nexusdesk-dev (app-project dev host).
+  updated: 2026-05-26
+  vm_count: 93          # built/cold-rebuild-proven through Phase 0.L.5 (count of the built rows below): edge 1 + foundation 5 (dc-nexus + vault-1/2/3 + vault-transit) + swarm 6 + kafka 15 + oltp 26 (redis 6 + mongo 3 + percona 5 + postgres 8 + sqlserver 4) + analytics 20 (clickhouse 9 + starrocks sn 6 + starrocks-sd 5) + lakehouse 16 + registry 4. The other 19 rows in this file are NOT yet built: observability 14 (Phase 0.I — prom/loki/tempo/grafana/grafana-pg/otel-collector, scaffolded 2026-05-26 per ADR-0038, supersedes the prior obs-{metrics,tracing,logging} singleton reservation) + platform-tools prefect/unleash/marquez/backstage 4 (future 0.J/0.K) + windows-workstations nexusdesk-dev 1 (app-project dev host).
   host: 10.0.70.101
   hypervisor: VMware Workstation Pro 17.5+
   plan_version: v0.1.5
@@ -49,8 +49,8 @@ storage:
 clusters:
 
   foundation:
-    purpose: AD, DNS, HashiCorp Vault, observability stack
-    phase: 0.A-0.D / 0.I
+    purpose: AD, DNS, HashiCorp Vault
+    phase: 0.A-0.D
     nodes:
       - { name: dc-nexus,     os: ws2025-desktop, vcpu: 2, ram_gb: 4,  disk_gb: 60,  vmnet10: 192.168.10.10, vmnet11: 192.168.70.10, dir: H:\VMS\NexusPlatform\01-foundation\dc-nexus,     role: "AD DC + DNS" }
       # Vault Raft nodes -- ram_gb dropped 4 -> 2 (approved deviation, ratified 0.D.4 close-out 2026-05-02).
@@ -65,9 +65,54 @@ clusters:
       # Same Packer template as the cluster (firstboot's hostname-IP map covers
       # .124). Per memory/feedback_vmware_per_vm_folders.md: own subdir.
       - { name: vault-transit, os: deb13,         vcpu: 2, ram_gb: 2,  disk_gb: 40,  vmnet10: 192.168.10.124, vmnet11: 192.168.70.124, dir: H:\VMS\NexusPlatform\01-foundation\vault-transit, role: "Vault transit auto-unseal key custodian" }
-      - { name: obs-metrics,  os: deb13,          vcpu: 4, ram_gb: 12, disk_gb: 120, vmnet10: 192.168.10.90,  vmnet11: 192.168.70.90,  dir: H:\VMS\NexusPlatform\01-foundation\obs-metrics,  role: "Prometheus + VictoriaMetrics + Grafana + Alertmanager + Karma + Marquez" }
-      - { name: obs-tracing,  os: deb13,          vcpu: 2, ram_gb: 8,  disk_gb: 80,  vmnet10: 192.168.10.93,  vmnet11: 192.168.70.93,  dir: H:\VMS\NexusPlatform\01-foundation\obs-tracing,  role: "Jaeger + OTel Collector" }
-      - { name: obs-logging,  os: deb13,          vcpu: 2, ram_gb: 8,  disk_gb: 120, vmnet10: 192.168.10.94,  vmnet11: 192.168.70.94,  dir: H:\VMS\NexusPlatform\01-foundation\obs-logging,  role: "Seq + Vector" }
+
+  # Phase 0.I observability tier (ADR-0038, scaffolded 2026-05-26).
+  # Supersedes the prior single-VM obs-{metrics,tracing,logging} reservation at .90/.93/.94
+  # (drafted pre-ADR-0025, never built; retired per ADR-0038 §Context). VMs share the
+  # 01-foundation\<vm-name>\ dir convention (foundation-tier extension on disk) but live in
+  # a separate repo `grezap/nexus-infra-observability` (per-tier-repo canon: kafka/oltp/
+  # analytics/lakehouse/registry each own theirs). Stack = Grafana LGTM (Prom + Grafana +
+  # Loki + Tempo + Alertmanager). 14 VMs + 2 VRRP VIPs. Reuses 0.L.1 MinIO as object store
+  # for Loki/Tempo via dedicated `nexus-{loki,tempo}-app` tenants (mirrors 0.L.5 pattern).
+  # Front door = VRRP VIP pair for Grafana (.184) + Grafana PG (.185) per ADR-0025;
+  # machine endpoints (Prom/Loki/Tempo writes + OTel Collector) on round-robin DNS per
+  # ADR-0031. mTLS via per-host `observability-server` Vault PKI cert. Hybrid shipper:
+  # Prom scrape (node_exporter) + Vector (logs) + apps push OTLP (traces).
+  # RAM sized minimally per feedback_prefer_less_memory.md; production sizing would double.
+  observability:
+    purpose: Observability tier (Phase 0.I) -- Prometheus HA + Grafana HA + Loki SSD + Tempo scalable + Alertmanager mesh + OTel Collector pair; MinIO S3 backend for Loki+Tempo (reuses 0.L.1)
+    phase: 0.I (ADR-0038; 14 VMs + 2 VIPs)
+    architecture: |
+      Grafana LGTM stack with all roles HA per ADR-0025. Prom HA = 2 nodes that each
+      scrape every fleet target (Grafana datasource dedups); Alertmanager mesh co-resident
+      on the Prom pair. Loki simple-scalable = 3 nodes each running read+write+backend
+      (memberlist gossip ring; MinIO bucket `loki` via dedicated `nexus-loki-app` tenant).
+      Tempo scalable = 3 nodes each running distributor+ingester+querier+query-frontend+
+      compactor (memberlist ring; MinIO bucket `tempo` via dedicated `nexus-tempo-app`
+      tenant; OTLP receivers on :4317/:4318). Grafana HA = 2 active-active nodes behind
+      VRRP VIP `grafana.nexus.lab .184` (unicast VRRP; cert IP-SAN includes the VIP).
+      Grafana PG HA = 2 nodes streaming replication + keepalived VRRP VIP
+      `grafana-db.nexus.lab .185` (mirrors 0.L.2 iceberg-db / 0.L.4 registry-db pattern).
+      OTel Collector pair = 2 nodes behind round-robin DNS `otel.nexus.lab` (clients
+      retry on connection failure, no VIP per ADR-0031 for write paths).
+    virtual_ips:
+      - { ip: 192.168.70.184, name: grafana.nexus.lab,    owners: "grafana-1 (MASTER prio 110) / grafana-2 (BACKUP prio 100)",       service: "Grafana HA front door (unicast VRRP; Phase 0.I.4)" }
+      - { ip: 192.168.70.185, name: grafana-db.nexus.lab, owners: "grafana-pg-1 (MASTER prio 110) / grafana-pg-2 (BACKUP prio 100)", service: "Grafana Postgres HA front door (unicast VRRP; Phase 0.I.4)" }
+    nodes:
+      - { name: prom-1,            os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 80, vmnet10: 192.168.10.170, vmnet11: 192.168.70.170, dir: H:\VMS\NexusPlatform\01-foundation\prom-1,            role: "Prometheus + Alertmanager #1 (HA pair; both Proms scrape every target; Alertmanager mesh peer)" }
+      - { name: prom-2,            os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 80, vmnet10: 192.168.10.171, vmnet11: 192.168.70.171, dir: H:\VMS\NexusPlatform\01-foundation\prom-2,            role: "Prometheus + Alertmanager #2 (HA pair; Alertmanager mesh peer)" }
+      - { name: loki-1,            os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.172, vmnet11: 192.168.70.172, dir: H:\VMS\NexusPlatform\01-foundation\loki-1,            role: "Loki simple-scalable #1 (read+write+backend; memberlist ring; MinIO S3 backend)" }
+      - { name: loki-2,            os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.173, vmnet11: 192.168.70.173, dir: H:\VMS\NexusPlatform\01-foundation\loki-2,            role: "Loki simple-scalable #2 (read+write+backend)" }
+      - { name: loki-3,            os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.174, vmnet11: 192.168.70.174, dir: H:\VMS\NexusPlatform\01-foundation\loki-3,            role: "Loki simple-scalable #3 (read+write+backend)" }
+      - { name: tempo-1,           os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.175, vmnet11: 192.168.70.175, dir: H:\VMS\NexusPlatform\01-foundation\tempo-1,           role: "Tempo scalable #1 (distributor+ingester+querier+query-frontend+compactor; memberlist ring; MinIO S3 backend; OTLP :4317/:4318)" }
+      - { name: tempo-2,           os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.176, vmnet11: 192.168.70.176, dir: H:\VMS\NexusPlatform\01-foundation\tempo-2,           role: "Tempo scalable #2" }
+      - { name: tempo-3,           os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40, vmnet10: 192.168.10.177, vmnet11: 192.168.70.177, dir: H:\VMS\NexusPlatform\01-foundation\tempo-3,           role: "Tempo scalable #3" }
+      - { name: grafana-1,         os: deb13, vcpu: 2, ram_gb: 3, disk_gb: 40, vmnet10: 192.168.10.178, vmnet11: 192.168.70.178, dir: H:\VMS\NexusPlatform\01-foundation\grafana-1,         role: "Grafana HA #1 (active-active over shared PG; keepalived MASTER candidate for VIP .184)" }
+      - { name: grafana-2,         os: deb13, vcpu: 2, ram_gb: 3, disk_gb: 40, vmnet10: 192.168.10.179, vmnet11: 192.168.70.179, dir: H:\VMS\NexusPlatform\01-foundation\grafana-2,         role: "Grafana HA #2 (keepalived BACKUP for VIP .184)" }
+      - { name: grafana-pg-1,      os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 60, vmnet10: 192.168.10.180, vmnet11: 192.168.70.180, dir: H:\VMS\NexusPlatform\01-foundation\grafana-pg-1,      role: "Grafana Postgres PRIMARY (streaming repl; keepalived MASTER for VIP .185)" }
+      - { name: grafana-pg-2,      os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 60, vmnet10: 192.168.10.181, vmnet11: 192.168.70.181, dir: H:\VMS\NexusPlatform\01-foundation\grafana-pg-2,      role: "Grafana Postgres REPLICA (keepalived BACKUP for VIP .185)" }
+      - { name: otel-collector-1,  os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.182, vmnet11: 192.168.70.182, dir: H:\VMS\NexusPlatform\01-foundation\otel-collector-1,  role: "OTel Collector #1 (OTLP receivers :4317/:4318; routes traces->Tempo, metrics->Prom remote-write, logs->Loki)" }
+      - { name: otel-collector-2,  os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.183, vmnet11: 192.168.70.183, dir: H:\VMS\NexusPlatform\01-foundation\otel-collector-2,  role: "OTel Collector #2 (round-robin DNS otel.nexus.lab; no VIP per ADR-0031 for write paths)" }
 
   sqlserver:
     purpose: SQL Server FCI + Always On AG (Phase 0.G.7 -- hybrid FCI+AG; FCI pair shares iSCSI LUN from nexus-gateway, AG replicas hold async copies)

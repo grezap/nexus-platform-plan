@@ -151,7 +151,7 @@ Complete VM → IP map lives in [`vms.yaml`](./vms.yaml).
 - `nexus-gateway` runs a `dnsmasq` DNS forwarder — authoritative for `*.nexus.local`, forwards everything else to `1.1.1.1` / `1.0.0.1`.
 - `dc-nexus` (192.168.70.10) runs Active Directory DNS once built. Windows VMs join AD domain `nexus.local`.
 - Linux VMs use `nexus-gateway` (192.168.70.1) as primary resolver.
-- Service names (e.g. `obs-metrics.nexus.local`, `sql-ag-listener.nexus.local`) resolve host-wide from the workstation by adding `192.168.70.1` as a secondary DNS on `VMware Network Adapter VMnet11`.
+- Service names (e.g. `grafana.nexus.lab`, `sql-ag-listener.nexus.local`) resolve host-wide from the workstation by adding `192.168.70.1` as a secondary DNS on `VMware Network Adapter VMnet11`.
 - **Round-robin (multi-A) `host-record` entries** on `nexus-gateway`'s dnsmasq give cluster front doors a single stable name resolving to all member nodes (resolvers rotate; the engines' native multi-host clients retry the next on failure):
   - `portainer.nexus.lab` → swarm managers `.111`–`.113` (Phase 0.E.4c)
   - `clickhouse.nexus.lab` → ClickHouse data nodes `.44`–`.49` (Phase 0.G.5; the 6 shard-replica nodes — every one is an equal `Distributed`-table entry point)
@@ -163,6 +163,12 @@ Complete VM → IP map lives in [`vms.yaml`](./vms.yaml).
   - `spark-master.nexus.lab` → the 2 Spark HA masters `.140`/`.153` (Phase 0.L.3; round-robin for the Web UI `:8080` — the Spark cluster's multi-master URL `spark://…:7077,…:7077` uses node IPs, and ZooKeeper `.155`–`.157` elects the live master). ZooKeeper has no VMnet11 DNS — it is backplane-IP-only by design.
   - `registry.nexus.lab` → the 2 Harbor HA app nodes `.115`/`.116` (Phase 0.L.4; HTTPS `:443` — two stateless Harbor instances, any one serves any push/pull; per-host `registry-server` PKI certs carry this name in their SANs; ADR-0036)
   - `registry-db.nexus.lab` → registry datastore **VRRP VIP `.119`** (Phase 0.L.4; PostgreSQL `:5432` + Redis `:6379` — keepalived floats the VIP to the current primary of the registry-pg `.117`/`.118` master-replica pair; the PG leaf cert SAN/IP-SANs carry this name + `.119`)
+  - `prometheus.nexus.lab` → Prom HA `.170`/`.171` (Phase 0.I.1; HTTPS `:9090` — both Proms independently scrape every fleet target, Grafana datasource dedups; no VIP because the scrape model already covers HA)
+  - `loki.nexus.lab` → Loki SSD `.172`–`.174` (Phase 0.I.2; HTTPS `:3100` — push API + query API; memberlist ring on all 3 nodes; durable storage in MinIO `bucket=loki`)
+  - `tempo.nexus.lab` → Tempo scalable `.175`–`.177` (Phase 0.I.3; OTLP gRPC `:4317` + OTLP HTTP `:4318` + query `:3200`; memberlist ring; durable storage in MinIO `bucket=tempo`)
+  - `grafana.nexus.lab` → **VRRP VIP `.184`** (Phase 0.I.4 / ADR-0025; HTTPS `:3000` — keepalived floats the VIP to the current MASTER of the grafana-1/grafana-2 active-active pair; the leaf cert IP-SANs on both grafana nodes include `.184`)
+  - `grafana-db.nexus.lab` → Grafana Postgres **VRRP VIP `.185`** (Phase 0.I.4; PostgreSQL `:5432` — keepalived floats the VIP to the current primary of the grafana-pg `.180`/`.181` master-replica pair; the PG leaf cert IP-SANs carry this name + `.185`)
+  - `otel.nexus.lab` → OTel Collector `.182`/`.183` (Phase 0.I.5; OTLP gRPC `:4317` + OTLP HTTP `:4318` — routes traces→Tempo, metrics→Prom remote-write, logs→Loki; round-robin DNS per ADR-0031 for write paths, clients retry on connection failure)
 
 ### Analytics-tier MAC reservations (VMnet11 dhcp-host)
 
@@ -219,6 +225,28 @@ The **0.L.4 registry HA expansion** (ADR-0036) takes the next free MACs `AF`–`
 registry-2 `.116` `AF`, registry-pg-1 `.117` `B0`, registry-pg-2 `.118` `B1`
 (registry-1 keeps `A4`). The datastore VRRP VIP `registry-db.nexus.lab .119` has
 no MAC. MAC high-water is now `B1`.
+
+### Observability-tier MAC reservations (VMnet11 dhcp-host)
+
+The 14 observability nodes (Phase 0.I, foundation tier extension; ADR-0038) get
+static-pinned VMnet11 IPs in the contiguous `:B2`–`:BF` MAC block, just past the
+registry tier high-water `:B1`. Secondary NICs (VMnet10 backplane) use the same
+sixth byte with fifth byte `01`. Primary MAC plan (`00:50:56:3F:00:XX`):
+
+| Node | VMnet11 | Primary MAC `…:00:` | Node | VMnet11 | Primary MAC `…:00:` |
+|---|---|---|---|---|---|
+| prom-1            | .170 | `B2` | grafana-1        | .178 | `BA` |
+| prom-2            | .171 | `B3` | grafana-2        | .179 | `BB` |
+| loki-1            | .172 | `B4` | grafana-pg-1     | .180 | `BC` |
+| loki-2            | .173 | `B5` | grafana-pg-2     | .181 | `BD` |
+| loki-3            | .174 | `B6` | otel-collector-1 | .182 | `BE` |
+| tempo-1           | .175 | `B7` | otel-collector-2 | .183 | `BF` |
+| tempo-2           | .176 | `B8` | (Grafana VIP `.184` — VRRP, no MAC) | | |
+| tempo-3           | .177 | `B9` | (Grafana PG VIP `.185` — VRRP, no MAC) | | |
+
+The two VRRP VIPs (`grafana.nexus.lab .184` + `grafana-db.nexus.lab .185`) have no
+MAC — keepalived floats them between the respective MASTER/BACKUP nodes per
+ADR-0025. MAC high-water is now `BF`.
 
 ## Firewall posture
 

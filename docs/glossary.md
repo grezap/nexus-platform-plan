@@ -288,31 +288,51 @@ A **distributed SQL query engine** that federates queries across heterogeneous d
 
 ### OpenTelemetry (OTel)
 A **vendor-neutral standard + libraries** for instrumenting code with the three pillars of observability: **traces** (call graphs across services), **metrics** (counters, gauges, histograms), and **logs**. Apps emit telemetry in OTLP format; collectors route it to backend stores. Replaces vendor-specific SDKs (Datadog, New Relic, etc.).
-*In NexusPlatform:* every .NET service is instrumented with OTel; OTLP collectors fan the data out to Prometheus, Jaeger, and Seq.
+*In NexusPlatform:* every .NET and Python app is instrumented with OTel. Apps push OTLP to the **OTel Collector pair** (`otel.nexus.lab` round-robin DNS over `.182`/`.183`, Phase 0.I.5), which fans out traces → Tempo, metrics → Prometheus remote-write, logs → Loki. The collector pair is the single egress point for app telemetry; round-robin DNS per ADR-0031 (write paths retry).
+
+### OTel Collector
+The **vendor-neutral routing daemon** in the OpenTelemetry project. Accepts OTLP (gRPC `:4317` / HTTP `:4318`) and exports to multiple backends (Tempo, Prom, Loki, Jaeger, etc.) via pipelines configured in YAML.
+*In NexusPlatform:* runs as the `otel-collector-1/2` HA pair (Phase 0.I.5); the only direct OTLP recipient for the app fleet. Per ADR-0038 it routes traces → Tempo, metrics → Prom remote-write, logs → Loki.
 
 ### Prometheus
 A **pull-based metrics database**. Periodically scrapes HTTP `/metrics` endpoints from your services, stores time-series, and exposes a query language (PromQL) for dashboards and alerts.
-*In NexusPlatform:* short-term metrics. Long-term storage offloads to VictoriaMetrics.
-
-### VictoriaMetrics
-A **long-term metrics storage backend** that's wire-compatible with Prometheus but more efficient for retention beyond a few weeks.
-*In NexusPlatform:* archives Prometheus data so 90-day Grafana panels work.
+*In NexusPlatform:* deployed as a **2-VM HA pair** `prom-1/2` (Phase 0.I.1, ADR-0038) — each Prometheus independently scrapes every fleet target (node_exporter on every Linux VM + windows_exporter on ws2025 desktops + per-engine exporters); Grafana's Prometheus datasource dedupes on the read side. No long-term storage in v0.1.0 — retention bounded by local disk. Adding Grafana Mimir on MinIO is a tracked future enhancement.
 
 ### Grafana
 A **dashboard UI for time-series data**. Connects to many sources (Prometheus, ClickHouse, PostgreSQL, …), renders charts, alerts on PromQL/SQL conditions.
-*In NexusPlatform:* 10 built-in dashboards covering every infra and application tier.
+*In NexusPlatform:* deployed as a **2-VM active-active HA pair** behind a **VRRP VIP** `grafana.nexus.lab` `.184` (Phase 0.I.4, ADR-0038 + ADR-0025). Shared state lives in a dedicated `grafana-pg` Postgres HA pair (master-replica + keepalived VIP `.185`, mirroring the 0.L.2 iceberg-db / 0.L.4 registry-db pattern). Pre-provisioned datasources: Prometheus HA, Loki, Tempo. Operators bookmark one URL — atomic sub-second failover on either node loss.
 
-### Jaeger
-A **distributed-tracing UI**. Visualizes a single request as it propagates through multiple services, with timing per hop. Click a slow request → see exactly where the time went.
-*In NexusPlatform:* backend for OTel traces.
+### Loki
+**Grafana's log aggregation backend.** Designed like Prometheus but for log lines — indexes labels (`{host="kafka-east-1", service="kafka"}`), stores log bodies on object storage, queries via LogQL. JSON-line logs get structured filtering via `| json | OrderId="42"`.
+*In NexusPlatform:* deployed in **simple-scalable mode** across **3 VMs** `loki-1/2/3` (Phase 0.I.2, ADR-0038) — each node runs all components (read + write + backend) in a memberlist gossip ring; durable storage in MinIO `bucket=loki` via the dedicated `nexus-loki-app` tenant (scoped policy). C# devs push via `Serilog.Sinks.Grafana.Loki`; Python devs via `python-logging-loki` or OTel logs SDK; infra logs via Vector tailing journald + `/var/log/*`.
 
-### Seq
-A **structured-log search UI**, .NET-flavored. Like Splunk but lightweight and free for single-user deployments.
-*In NexusPlatform:* receives OTel logs; primary log search interface for the .NET app fleet.
+### Tempo
+**Grafana's distributed-tracing backend.** OTLP/Jaeger/Zipkin protocols accepted; trace data stored on object storage; correlation links to Loki logs and Prometheus metrics in Grafana.
+*In NexusPlatform:* deployed in **single-binary scalable mode** across **3 VMs** `tempo-1/2/3` (Phase 0.I.3, ADR-0038) — each node runs all components (distributor + ingester + querier + query-frontend + compactor) in a memberlist ring; durable storage in MinIO `bucket=tempo` via the dedicated `nexus-tempo-app` tenant. OTLP receivers on `:4317`/`:4318` accept traces from the OTel Collector pair.
 
 ### Alertmanager
 Part of the Prometheus stack. **Routes Prometheus-fired alerts** to channels (Slack, email, PagerDuty), with grouping, silencing, and de-duplication.
-*In NexusPlatform:* routes lab alerts to a single channel — production-shape but lab-scale.
+*In NexusPlatform:* deployed as a **2-node gossip mesh co-resident on the Prom HA pair** `prom-1/2` (Phase 0.I.1, ADR-0038). Both Proms fire to both Alertmanagers; the mesh dedupes. Routes lab alerts to a single channel — production-shape but lab-scale.
+
+### Vector
+A **lightweight Rust log-shipping daemon** (similar role to Fluent Bit / Logstash but faster and smaller). Tails files + journald + Windows event log, structures into JSON, ships to a backend (Loki, Elasticsearch, S3, etc.) with batching and retries.
+*In NexusPlatform:* baked into the deb13 baseline + every per-engine template (Phase 0.I.6 fleet-wide rollout). Default config tails journald + `/var/log/syslog` + `/var/log/auth.log` + engine-specific log files; pushes JSON to `https://loki.nexus.lab:3100/loki/api/v1/push`. ws2025 desktops use `winlogbeat` → Vector relay on the obs tier.
+
+### node_exporter / windows_exporter
+**Host-level Prometheus exporters** — `node_exporter` for Linux (CPU/RAM/disk/network/systemd unit state) and `windows_exporter` for Windows (Perfmon counters, services, Windows events).
+*In NexusPlatform:* `node_exporter` on every Linux VM (port `:9100`) and `windows_exporter` on every ws2025 desktop (port `:9182`); both Proms scrape them by service-discovery file generated from `vms.yaml` consumer list. Engine-specific exporters (kafka-exporter, postgres-exporter, redis-exporter, mongodb-exporter, mysqld-exporter, etc.) sit alongside on the same VMs where canonical.
+
+### Jaeger
+A **distributed-tracing UI**. Visualizes a single request as it propagates through multiple services, with timing per hop. Click a slow request → see exactly where the time went.
+*In NexusPlatform:* **NOT deployed.** The original obs tier draft listed Jaeger; ADR-0038 (Phase 0.I, 2026-05-26) replaced it with **Tempo** (above) — same OTLP protocol, Grafana-native UI, single-pane-of-glass with metrics + logs.
+
+### Seq
+A **structured-log search UI**, .NET-flavored. Like Splunk but lightweight and free for single-user deployments.
+*In NexusPlatform:* **NOT deployed.** The original obs tier draft listed Seq for .NET-friendly structured logs; ADR-0038 (Phase 0.I, 2026-05-26) replaced it with **Loki** (above) for two reasons: (1) Seq Free Edition is single-node only — no FOSS HA without paid Seq cluster, which would violate ADR-0025; (2) C# / Python equal-class treatment via OTel logs + Serilog's Loki sink. The Serilog property model is preserved in Loki via JSON-line labels — querying via `| json | OrderId="123"` is the LogQL equivalent of Seq's native property syntax.
+
+### VictoriaMetrics
+A **long-term metrics storage backend** that's wire-compatible with Prometheus but more efficient for retention beyond a few weeks.
+*In NexusPlatform:* **NOT deployed.** The original obs tier draft listed VictoriaMetrics; ADR-0038 (Phase 0.I, 2026-05-26) chose plain **Prometheus HA pair** instead. Adding Grafana Mimir on MinIO for long-term metrics retention is a tracked future enhancement (post-Phase-0).
 
 ---
 
