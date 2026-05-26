@@ -202,6 +202,18 @@ A **real-time analytical (MPP) database** with a separated **frontend (FE)** + *
 The **unit of data sharding + replication in StarRocks**. A table is hash-distributed into `BUCKETS n` tablets; each tablet is copied `replication_num` times across the BE nodes. Tablets are what the FE scheduler places, balances, and re-replicates — the StarRocks analogue of a ClickHouse shard-replica or a Kafka partition-replica.
 *In NexusPlatform:* demo + showcase tables use `BUCKETS ≥ 3` × `replication_num = 3` so every BE holds tablets and no single BE loss makes any tablet unavailable; the smoke gate proves tablet distribution across all 3 BE via `SHOW TABLET`.
 
+### Shared-data mode (StarRocks `run_mode=shared_data`)
+StarRocks's **storage-compute-separation** deployment model (3.x). The FE still holds metadata (BDB-JE quorum, no change), but tablets are no longer replicated across local BE disks — instead, each cloud-native table's data lives in a **storage volume** (an S3-compatible object store) and the data plane is one or more stateless **Compute Nodes (CN)**. Durability comes from the object store's own EC/replication; HA comes from "any CN can serve any query from shared storage". The opposite is `run_mode=shared_nothing` (the classic FE+BE topology where tablets × `replication_num` deliver HA at the StarRocks layer). The two modes are mutually exclusive within a cluster — you choose one at cluster creation and cannot mix.
+*In NexusPlatform:* Phase 0.L.5 (ADR-0037) deploys a SECOND StarRocks cluster in shared-data mode (3 FE + 2 CN), parallel to the sealed shared-nothing 0.G.6 cluster. Internal cloud-native tables land in a MinIO storage volume `s3://starrocks/`. The headline HA property — any CN serves from shared storage — is exercised by `smoke-0.L.5.ps1` running CN-loss chaos by default.
+
+### Compute Node (StarRocks CN)
+The **stateless data-plane node** in a StarRocks shared-data cluster. Same binary as the BE (`/opt/starrocks/be/`) but started via `start_cn.sh` with `cn.conf` instead of `start_be.sh`/`be.conf`, and added to the cluster via `ALTER SYSTEM ADD COMPUTE NODE "host:9050"` (vs. `ADD BACKEND` for a BE). A CN holds no durable data; it executes scan/agg/join against a storage volume + a local datacache (`storage_root_path` is cache + spill only). Losing a CN does NOT lose data — any peer CN serves the same shared storage.
+*In NexusPlatform:* sr-sd-cn-1/2 (`.30`/`.40`); the smoke proves CN-loss tolerance by killing one CN and re-running the query.
+
+### Storage volume (StarRocks)
+A **named pointer to an object-storage location** that holds cloud-native table data. Created via SQL `CREATE STORAGE VOLUME <name> TYPE = S3 LOCATIONS = ('s3://bucket/path/') PROPERTIES(...)`; one is designated the default (`SET <name> AS DEFAULT STORAGE VOLUME`) and subsequent `CREATE TABLE` statements without an explicit `STORAGE VOLUME` clause land there. Each storage volume's PROPERTIES carry the S3 endpoint + credentials, so you can move data to a different bucket / different object store without rebaking the FE — `fe.conf` deliberately does not hold S3 secrets.
+*In NexusPlatform:* `nexus_minio_starrocks` → `s3://starrocks/` on the MinIO 4-node EC cluster, scoped to the `nexus-starrocks-app` MinIO service account with the `starrocks-tenant` policy (s3:* on the starrocks bucket only; no cross-bucket access, proven negatively in the tenant-bootstrap exit gate).
+
 ### MinIO
 **S3-compatible object store**, self-hosted. Same API as Amazon S3, so any S3 client works against it unchanged.
 *In NexusPlatform:* backs Iceberg tables in `lakehouse-core` plus general object storage for Spark, Backstage, and demo recordings.

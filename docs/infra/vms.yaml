@@ -4,7 +4,7 @@
 
 metadata:
   updated: 2026-05-25
-  vm_count: 88          # built/cold-rebuild-proven through Phase 0.L.4 (count of the built rows below): edge 1 + foundation 5 (dc-nexus + vault-1/2/3 + vault-transit) + swarm 6 + kafka 15 + oltp 26 (redis 6 + mongo 3 + percona 5 + postgres 8 + sqlserver 4) + analytics 15 (clickhouse 9 + starrocks 6) + lakehouse 16 + registry 4. The other 8 rows in this file are NOT yet built: foundation obs-{metrics,tracing,logging} (Phase 0.I observability) + platform-tools prefect/unleash/marquez/backstage (future 0.I/0.J/0.K) + windows-workstations nexusdesk-dev (app-project dev host). 0.L.5 adds 5 StarRocks shared-data nodes (04-analytics).
+  vm_count: 93          # built/cold-rebuild-proven through Phase 0.L.5 (count of the built rows below): edge 1 + foundation 5 (dc-nexus + vault-1/2/3 + vault-transit) + swarm 6 + kafka 15 + oltp 26 (redis 6 + mongo 3 + percona 5 + postgres 8 + sqlserver 4) + analytics 20 (clickhouse 9 + starrocks sn 6 + starrocks-sd 5) + lakehouse 16 + registry 4. The other 8 rows in this file are NOT yet built: foundation obs-{metrics,tracing,logging} (Phase 0.I observability) + platform-tools prefect/unleash/marquez/backstage (future 0.I/0.J/0.K) + windows-workstations nexusdesk-dev (app-project dev host).
   host: 10.0.70.101
   hypervisor: VMware Workstation Pro 17.5+
   plan_version: v0.1.5
@@ -173,6 +173,24 @@ clusters:
       - { name: sr-be-1,          os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 300, vmnet10: 192.168.10.34, vmnet11: 192.168.70.34, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-1,          role: "BE node 1" }
       - { name: sr-be-2,          os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 300, vmnet10: 192.168.10.35, vmnet11: 192.168.70.35, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-2,          role: "BE node 2" }
       - { name: sr-be-3,          os: deb13, vcpu: 4, ram_gb: 6, disk_gb: 300, vmnet10: 192.168.10.36, vmnet11: 192.168.70.36, dir: H:\VMS\NexusPlatform\04-analytics\sr-be-3,          role: "BE node 3" }
+
+  starrocks-sd:
+    purpose: StarRocks shared-data (run_mode=shared_data) -- 3 FE BDB-JE quorum + 2 CN stateless compute, internal cloud-native tables in a MinIO storage volume (Phase 0.L.5, ADR-0037). SEPARATE cluster from the sealed shared-nothing one above; both run in parallel and never share on-host state.
+    phase: 0.L.5
+    # Client front door = round-robin DNS `starrocks-sd-fe.nexus.lab` (multi-A over
+    # the 3 FE) -- NO VIP (ADR-0031). Data plane = 2 stateless CN; durability is
+    # the MinIO EC backend (storage volume `nexus_minio_starrocks` -> s3://starrocks/).
+    # CN-2 spilled to .40 because SR decade .3x only had 4 free slots (.30/.37/.38/.39);
+    # full-HA 3FE+2CN needs 5 (ADR-0037 § "VM allocation").
+    #
+    # ram_gb canon (ADR-0037): FE 3 GB (metadata-only -- no tablet replicas to track),
+    # CN 4 GB (stateless compute + local datacache only -- durable data in MinIO).
+    nodes:
+      - { name: sr-sd-fe-1,       os: deb13, vcpu: 2, ram_gb: 3, disk_gb: 60,  vmnet10: 192.168.10.37, vmnet11: 192.168.70.37, dir: H:\VMS\NexusPlatform\04-analytics\sr-sd-fe-1,       role: "FE leader (bootstrap; election dynamic)" }
+      - { name: sr-sd-fe-2,       os: deb13, vcpu: 2, ram_gb: 3, disk_gb: 60,  vmnet10: 192.168.10.38, vmnet11: 192.168.70.38, dir: H:\VMS\NexusPlatform\04-analytics\sr-sd-fe-2,       role: "FE follower" }
+      - { name: sr-sd-fe-3,       os: deb13, vcpu: 2, ram_gb: 3, disk_gb: 60,  vmnet10: 192.168.10.39, vmnet11: 192.168.70.39, dir: H:\VMS\NexusPlatform\04-analytics\sr-sd-fe-3,       role: "FE follower" }
+      - { name: sr-sd-cn-1,       os: deb13, vcpu: 4, ram_gb: 4, disk_gb: 80,  vmnet10: 192.168.10.30, vmnet11: 192.168.70.30, dir: H:\VMS\NexusPlatform\04-analytics\sr-sd-cn-1,       role: "CN (stateless compute)" }
+      - { name: sr-sd-cn-2,       os: deb13, vcpu: 4, ram_gb: 4, disk_gb: 80,  vmnet10: 192.168.10.40, vmnet11: 192.168.70.40, dir: H:\VMS\NexusPlatform\04-analytics\sr-sd-cn-2,       role: "CN (stateless compute; decade-spill from .3x to .4x per ADR-0037)" }
 
   clickhouse:
     purpose: ClickHouse 3 shards x 2 replicas with Keeper quorum (Phase 0.G.5 -- Distributed over ReplicatedMergeTree; 3-node ClickHouse Keeper RAFT quorum [NOT ZooKeeper]; ADR-0028/0029)

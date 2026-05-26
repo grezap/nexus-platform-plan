@@ -12,7 +12,7 @@ cross-env operator order · §1.3 apply · §1.4 verify · §1.5 selective ops �
 §1.6 destroy · §3.1 cold-rebuild canon. This page is the cross-tier index;
 each row links to the canonical detail.
 
-## Inventory — what the lab has built so far (88 VMs cold-rebuild proven across 8 tiers, through Phase 0.L.4)
+## Inventory — what the lab has built so far (93 VMs cold-rebuild proven across 8 tiers, through Phase 0.L.5)
 
 | Tier | Repo | VMs | Phase |
 |---|---|---|---|
@@ -21,11 +21,11 @@ each row links to the canonical detail.
 | **06-orchestration** | `nexus-infra-swarm-nomad` (`envs/swarm-nomad`) | `swarm-manager-1/2/3`, `swarm-worker-1/2/3` (6) | 0.E |
 | **03-kafka** | `nexus-infra-kafka` (`envs/kafka`) | `kafka-east-1/2/3`, `kafka-west-1/2/3`, `schema-registry-1/2`, `kafka-rest-1`, `kafka-connect-1/2`, `ksqldb-1/2`, `mm2-1/2` (15) | 0.H |
 | **05-oltp** | `nexus-infra-oltp` (per-cluster envs: `envs/oltp-redis`, `envs/oltp-mongo`, `envs/oltp-percona`, `envs/oltp-patroni`) | `redis-1..6` (6) · `mongo-1/2/3` (3) · `pxc-1/2/3` + `proxysql-1/2` (5) · `pg-primary` + `pg-replica-1/2` + `etcd-1/2/3` + `haproxy-pg-1/2` (8) — VRRP VIPs `.50` (proxysql) + `.60` (haproxy-pg). | 0.G.1-0.G.4 |
-| **04-analytics** | `nexus-infra-analytics` (`envs/analytics-clickhouse`, `envs/analytics-starrocks`) | ClickHouse: `ch-keeper-1/2/3` + `ch-shard{1,2,3}-rep{1,2}` (9) · StarRocks: `sr-fe-{leader,follower-1,follower-2}` + `sr-be-1/2/3` (6) | 0.G.5-0.G.6 |
+| **04-analytics** | `nexus-infra-analytics` (`envs/analytics-clickhouse`, `envs/analytics-starrocks`, `envs/analytics-starrocks-sd`) | ClickHouse: `ch-keeper-1/2/3` + `ch-shard{1,2,3}-rep{1,2}` (9) · StarRocks sn: `sr-fe-{leader,follower-1,follower-2}` + `sr-be-1/2/3` (6) · StarRocks sd: `sr-sd-fe-1/2/3` + `sr-sd-cn-1/2` (5) | 0.G.5-0.G.6, 0.L.5 |
 | **08-spark** | `nexus-infra-lakehouse` (`envs/lakehouse-minio`, `envs/lakehouse-iceberg`, `envs/lakehouse-spark`) | MinIO `minio-1..4` (4) · Iceberg `iceberg-rest-1/2` + `iceberg-pg-1/2` + VIP `.151` (4) · Spark `spark-master-1/2` + `spark-worker-1/2/3` + `zookeeper-1/2/3` (8) | 0.L.1-0.L.3 |
 | **09-platform** | `nexus-infra-registry` (`envs/registry-harbor`) | Harbor app `registry-1/2` (2) · datastore `registry-pg-1/2` + VRRP VIP `registry-db .119` (2) | 0.L.4 |
 
-**Total: 88 VMs (cold-rebuild proven per tier, through Phase 0.L.4). All sealed tiers tagged on their repos; lakehouse + registry close out at 0.L.6 (tags). Phase 0.I observability (obs-metrics/tracing/logging) + the future platform tools + the 0.M-0.P sharding tiers are not yet built.**
+**Total: 93 VMs cold-rebuild proven (through Phase 0.L.5). All sealed tiers tagged on their repos; lakehouse + registry + analytics-extension close out at 0.L.6 (tags: lakehouse `v0.1.0`, registry `v0.1.0`, analytics `v0.2.0`). Phase 0.I observability (obs-metrics/tracing/logging) + the future platform tools + the 0.M-0.P sharding tiers are not yet built.**
 
 ## Per-tier from-zero replay matrix
 
@@ -46,6 +46,7 @@ verification, and the selective-ops examples.
 | **The OLTP Patroni Postgres HA cluster** (3-node Patroni + PG 17 + 3-node etcd 3.5 DCS + 2-node HAProxy 3 HA pair with VRRP VIP `192.168.70.60`, mTLS) | [`nexus-infra-oltp/docs/handbook.md` §3 — Patroni cluster from zero + §3.4 the 18-transient chronology](https://github.com/grezap/nexus-infra-oltp/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** | ~20-30 min |
 | **The lakehouse tier** (MinIO distributed EC + Iceberg/Nessie REST + dedicated PG HA + Spark HA + ZooKeeper, mTLS) | [`nexus-infra-lakehouse/docs/handbook.md` §1 — Phase walkthrough (§1.1 MinIO · §1.7 Iceberg · §1.13 Spark)](https://github.com/grezap/nexus-infra-lakehouse/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** (sub-phases layer: Iceberg + Spark need MinIO up) | ~40-60 min (all 3) |
 | **The registry tier** (HA Harbor: 2 app nodes round-robin + dedicated PG/Redis HA + VRRP VIP; MinIO S3 blobs; Trivy + cosign; Vault OIDC) | [`nexus-infra-registry/docs/handbook.md` §1 — Phase walkthrough + §3.2 the 7-transient chronology](https://github.com/grezap/nexus-infra-registry/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** + **MinIO (0.L.1) alive** (the S3 blob backend) | ~18-25 min |
+| **The StarRocks shared-data cluster (0.L.5)** (3 FE BDB-JE quorum + 2 stateless Compute Nodes; `run_mode=shared_data`; internal cloud-native tables in a MinIO storage volume `s3://starrocks/`; dedicated `nexus-starrocks-app` MinIO service account + scoped `starrocks-tenant` policy; ADR-0037 amends ADR-0030) | [`nexus-infra-analytics/docs/handbook.md` §1.C — Phase 0.L.5 walkthrough](https://github.com/grezap/nexus-infra-analytics/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** + **MinIO (0.L.1) alive** (the shared-data storage backend) | ~20-30 min |
 
 ## Selective ops index — "set up only X"
 

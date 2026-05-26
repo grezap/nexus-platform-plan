@@ -155,7 +155,8 @@ Complete VM → IP map lives in [`vms.yaml`](./vms.yaml).
 - **Round-robin (multi-A) `host-record` entries** on `nexus-gateway`'s dnsmasq give cluster front doors a single stable name resolving to all member nodes (resolvers rotate; the engines' native multi-host clients retry the next on failure):
   - `portainer.nexus.lab` → swarm managers `.111`–`.113` (Phase 0.E.4c)
   - `clickhouse.nexus.lab` → ClickHouse data nodes `.44`–`.49` (Phase 0.G.5; the 6 shard-replica nodes — every one is an equal `Distributed`-table entry point)
-  - `starrocks-fe.nexus.lab` → StarRocks FE `.31`–`.33` (Phase 0.G.6; MySQL protocol `:9030`, HTTP `:8030` — any FE serves queries + forwards DDL to the Leader)
+  - `starrocks-fe.nexus.lab` → StarRocks FE `.31`–`.33` (Phase 0.G.6; MySQL protocol `:9030`, HTTP `:8030` — any FE serves queries + forwards DDL to the Leader; **shared-nothing** cluster)
+  - `starrocks-sd-fe.nexus.lab` → StarRocks shared-data FE `.37`–`.39` (Phase 0.L.5 / ADR-0037; same MySQL `:9030`/HTTP `:8030` — separate parallel cluster running `run_mode=shared_data`; internal cloud-native tables in MinIO storage volume `s3://starrocks/`; data plane = 2 stateless CN at `.30`/`.40`)
   - `minio.nexus.lab` → MinIO nodes `.141`–`.144` (Phase 0.L.1; S3 API `:9000` — every node is an equal erasure-set entry point; per-host `minio-server` PKI certs carry this name in their SANs)
   - `iceberg.nexus.lab` → Nessie REST nodes `.147`/`.148` (Phase 0.L.2; Iceberg REST API HTTPS `:19120` — two stateless catalog instances, any one serves any request; per-host `iceberg-server` PKI certs carry this name in their SANs)
   - `iceberg-db.nexus.lab` → catalog-DB **VRRP VIP `.151`** (Phase 0.L.2; PostgreSQL `:5432` — keepalived floats the VIP to the current master of the iceberg-pg `.149`/`.150` master-replica pair; the PG leaf cert IP-SANs/SAN carry this name + `.151`)
@@ -165,7 +166,7 @@ Complete VM → IP map lives in [`vms.yaml`](./vms.yaml).
 
 ### Analytics-tier MAC reservations (VMnet11 dhcp-host)
 
-The 15 analytics nodes get static-pinned VMnet11 IPs via dnsmasq `dhcp-host` reservations on `nexus-gateway` (the contiguous MAC block after the OLTP tier, which ends at `:89`). Secondary NICs (VMnet10 backplane) use the same sixth byte with fifth byte `01` and are statically assigned by firstboot (no DHCP). Primary MAC plan (`00:50:56:3F:00:XX`):
+The 20 analytics nodes get static-pinned VMnet11 IPs via dnsmasq `dhcp-host` reservations on `nexus-gateway` (the contiguous MAC block after the OLTP tier, which ends at `:89`). Secondary NICs (VMnet10 backplane) use the same sixth byte with fifth byte `01` and are statically assigned by firstboot (no DHCP). Primary MAC plan (`00:50:56:3F:00:XX`):
 
 | Node | VMnet11 | Primary MAC `…:00:` | Node | VMnet11 | Primary MAC `…:00:` |
 |---|---|---|---|---|---|
@@ -177,6 +178,16 @@ The 15 analytics nodes get static-pinned VMnet11 IPs via dnsmasq `dhcp-host` res
 | ch-shard2-rep1 | .46 | `8F` | sr-be-1 | .34 | `96` |
 | ch-shard2-rep2 | .47 | `90` | sr-be-2 | .35 | `97` |
 |  |  |  | sr-be-3 | .36 | `98` |
+
+Phase 0.L.5 adds the **StarRocks shared-data** cluster (5 nodes; ADR-0037) in the reserved `:A5`–`:A9` MAC range between the 0.L.3 Spark/ZK block (`:AA`–`:AE`) and the 0.L.4 registry block (`:AF`–`:B1`). The CN-2 decade-spill to `.40` is intentional (SR `.3x` only had 4 free slots — `.30`/`.37`/`.38`/`.39` — so CN-2 lands at the first free ClickHouse-decade slot `.40`):
+
+| Node | VMnet11 | Primary MAC `…:00:` |
+|---|---|---|
+| sr-sd-fe-1 | .37 | `A5` |
+| sr-sd-fe-2 | .38 | `A6` |
+| sr-sd-fe-3 | .39 | `A7` |
+| sr-sd-cn-1 | .30 | `A8` |
+| sr-sd-cn-2 | .40 | `A9` |
 
 ### Lakehouse-tier MAC reservations (VMnet11 dhcp-host)
 

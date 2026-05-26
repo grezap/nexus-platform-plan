@@ -5,7 +5,7 @@
 This repository is the single source of truth that links the **14 Volumes of design docs**
 (`Vol00-Master-Blueprint` through `Vol13-Portfolio-Presentation`, plus the newly introduced
 `Vol14-Lakehouse-Core`) to **executable work** across 14 application projects, 7 built
-infrastructure repositories, ~75 ADRs, ~150 database tables, and 88 VMs (built/cold-rebuild-proven through Phase 0.L.4).
+infrastructure repositories, ~75 ADRs, ~150 database tables, and 93 VMs (built/cold-rebuild-proven through Phase 0.L.5).
 
 It contains no application code. Every other repo in the portfolio references this one.
 
@@ -15,7 +15,7 @@ It contains no application code. Every other repo in the portfolio references th
 |---|---|
 | Recruiter / non-technical viewer | [`docs/start-here.md`](./docs/start-here.md) — pick a 3–8 min demo scenario |
 | CTO / prospective client | [`MASTER-PLAN.md`](./MASTER-PLAN.md) — full scope, phases, acceptance gates |
-| **DevOps operator / lab rebuilder** | **[`docs/setup-guides.md`](./docs/setup-guides.md) — exact step-by-step replay path for every tier (88 VMs, 8 tiers): which VMs come alive in what order, how to bring each up from zero, selective-ops index ("set up only X")** |
+| **DevOps operator / lab rebuilder** | **[`docs/setup-guides.md`](./docs/setup-guides.md) — exact step-by-step replay path for every tier (93 VMs, 8 tiers): which VMs come alive in what order, how to bring each up from zero, selective-ops index ("set up only X")** |
 | Engineer reading the code | [`docs/skills-coverage.md`](./docs/skills-coverage.md) — which project demonstrates what |
 | Data architect | [`schemas/`](./schemas/) — enterprise DDL per project |
 | DevOps reviewer | [`docs/infra/`](./docs/infra/) — VM inventory, network canon, phase gates |
@@ -49,7 +49,7 @@ Changes to canon (network, enhancements, gates) land here first, then propagate 
 - **Phase 0.G.4 (Patroni PG HA + etcd + HAProxy HA pair) ✅ CLOSED 2026-05-19**, **8 VMs** (3 patroni + 3 etcd + **2 HAProxy** with VRRP VIP `.60`, mirroring the 0.G.3 proxysql-1/2 pattern — no SPOF on the LB tier): smoke gate **152/152 ALL GREEN** end-to-end. Ratification surfaced 18 transients (PG-17 PGDG t64-bookworm fallback · patronictl 4 CLI shape · tmpfs /tmp limit on small VMs · dnsmasq nexus.local vs nexus.lab domain · etcdctl JSON leader-id field · Patroni 4 password_file unsupported in restapi.auth · Patroni 4 ignores bootstrap.users · HAProxy needs CAP_SYS_CHROOT + `default-server check` keyword · PS quote/scope traps in smoke · etc) — all permanently fixed in source (handbook §3.4 18-row chronology table).
 - **Phase 0.G.7 (SQL Server FCI + Always On AG) ✅ LIVE-RATIFIED 2026-05-22**, **4 ws2025-desktop nodes** (2-node FCI `sqlfci` @ `.70.16` sharing an iSCSI LUN from nexus-gateway + 2 async AG replicas; AG Listener `sql-ag-listener` @ `.70.17`): `smoke-0.G.7.ps1` **56/56 ALL GREEN**. First Windows-fleet data cluster + first real GMSA consumer + first iSCSI shim. 40+ ratification transients fixed in source (handbook §3.5b + §3.5c). **OLTP tier SEALED (5/5).**
 - **Phase 0.G analytics tier ✅ SEALED 2026-05-23** — `grezap/nexus-infra-analytics` tagged `v0.1.0`: ClickHouse (0.G.5, 3 shards × 2 replicas + 3 Keeper) + StarRocks (0.G.6, 3 FE + 3 BE shared-nothing) both live-ratified **and cold-rebuild-proven** (`smoke-0.G.5.ps1` 129/129 · `smoke-0.G.6.ps1` 73/73 GREEN). **Phase 0.G data tier COMPLETE** (OLTP `v0.1.0` + analytics `v0.1.0`).
-- **Phase 0.L lakehouse + registry tier ◐ IN PROGRESS** — `grezap/nexus-infra-lakehouse` **0.L.1 MinIO + 0.L.2 Iceberg/Nessie (dedicated PG HA) + 0.L.3 Spark HA (ZooKeeper-elected) all SEALED** (live-ratified + cold-rebuild-proven; `smoke-0.L.{1,2,3}.ps1` 41/41 · 28/28 · 28/28 GREEN; ADRs 0033-0035), and `grezap/nexus-infra-registry` **0.L.4 HA Harbor SEALED 2026-05-25** (2 app nodes + dedicated PG/Redis HA + MinIO S3 blobs + Trivy + cosign + Vault OIDC; `smoke-0.L.4.ps1` 41/41 GREEN; ADR-0036). Next: **0.L.5** StarRocks shared-data/CN → **0.L.6** close-out.
+- **Phase 0.L lakehouse + registry + analytics-extension ◐ IN PROGRESS** — `grezap/nexus-infra-lakehouse` **0.L.1 MinIO + 0.L.2 Iceberg/Nessie (dedicated PG HA) + 0.L.3 Spark HA (ZooKeeper-elected) all SEALED** (live-ratified + cold-rebuild-proven; `smoke-0.L.{1,2,3}.ps1` 41/41 · 28/28 · 28/28 GREEN; ADRs 0033-0035), `grezap/nexus-infra-registry` **0.L.4 HA Harbor SEALED 2026-05-25** (2 app nodes + dedicated PG/Redis HA + MinIO S3 blobs + Trivy + cosign + Vault OIDC; `smoke-0.L.4.ps1` 41/41 GREEN; ADR-0036), and `grezap/nexus-infra-analytics` **0.L.5 StarRocks shared-data SEALED 2026-05-26** (3 FE BDB-JE + 2 stateless Compute Nodes, internal cloud-native tables in a MinIO storage volume `s3://starrocks/`, dedicated `nexus-starrocks-app` identity + scoped `starrocks-tenant` policy, `smoke-0.L.5.ps1` 69/69 GREEN with CN-loss chaos default-on; ADR-0037). Next: **0.L.6** close-out (tags: lakehouse `v0.1.0`, registry `v0.1.0`, analytics `v0.2.0`).
 
 ### Roadmap (status 2026-05-25)
 
@@ -59,7 +59,8 @@ INFRASTRUCTURE
   2. 0.L          Lakehouse + registry                      ◐ IN PROGRESS
        0.L.1 MinIO · 0.L.2 Iceberg · 0.L.3 Spark            ✅ SEALED (nexus-infra-lakehouse)
        0.L.4 Harbor HA                                      ✅ SEALED (nexus-infra-registry; ADR-0036)
-       0.L.5 StarRocks shared-data/CN · 0.L.6 close-out     ← NEXT
+       0.L.5 StarRocks shared-data/CN                       ✅ SEALED (nexus-infra-analytics extension; ADR-0037; smoke 69/69 with chaos)
+       0.L.6 close-out (3 tags + cold-rebuild proofs)       ← NEXT
   3. 0.I          Observability (LAST — monitors full fleet)
   4. 0.M          2nd AD DC (foundation HA)
   5. 0.N          MongoDB sharded cluster (extends nexus-infra-oltp)

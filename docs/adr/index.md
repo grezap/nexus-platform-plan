@@ -44,6 +44,7 @@ Architecture Decision Records across the portfolio. Shared ADRs (0001–0010) ar
 | 0034 | [Phase 0.L.2: Iceberg REST catalog — Project Nessie on a dedicated PostgreSQL master-replica HA pair (keepalived VRRP VIP)](./ADR-0034-iceberg-catalog-nessie-pg-master-replica.md) | accepted | 2026-05-24 |
 | 0035 | [Phase 0.L.3: Spark compute — standalone HA (2 masters + Apache ZooKeeper quorum; the one deliberate ZK exception)](./ADR-0035-spark-standalone-ha-zookeeper.md) | accepted | 2026-05-24 |
 | 0036 | [Phase 0.L.4: Harbor registry HA — 2 stateless app nodes (round-robin DNS) + dedicated PG/Redis master-replica HA, MinIO S3 blobs, Vault OIDC SSO](./ADR-0036-harbor-registry-ha.md) | accepted | 2026-05-25 |
+| 0037 | [Phase 0.L.5: StarRocks shared-data tier — 3 FE + 2 CN on `run_mode=shared_data`, internal cloud-native tables in a MinIO storage volume (amends ADR-0030)](./ADR-0037-starrocks-shared-data-cn-minio-storage-volume.md) | accepted | 2026-05-26 |
 | 0144 | [Windows licensing posture — MSDN primary, Evaluation fallback](./ADR-0144-windows-licensing.md) | accepted | 2026-04-22 |
 
 ## Per-project ADRs
