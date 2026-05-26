@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 0.L COMPLETE 2026-05-26 — 3 repo releases tagged at close-out (0.L.6)
+
+Phase 0.L (lakehouse + registry + analytics extension) is fully closed. All 5 sub-phases (0.L.1 MinIO · 0.L.2 Iceberg/Nessie + PG HA · 0.L.3 Spark HA · 0.L.4 Harbor HA · 0.L.5 StarRocks shared-data) live-ratified + cold-rebuild-proven (smoke gates 41/41 + 28/28 + 28/28 + 41/41 + 69/69 GREEN). 3 repos tagged simultaneously at the 0.L.6 close-out:
+
+- `nexus-infra-lakehouse` **`v0.1.0`** — lakehouse tier (`08-spark`, 16 VMs): MinIO + Iceberg/Nessie + Spark HA. Covers 0.L.1-0.L.3 + the 0.L.5 cross-tier MinIO tenant for SR-SD.
+- `nexus-infra-registry` **`v0.1.0`** — registry tier (`09-platform`, 4 VMs + VIP): HA Harbor.
+- `nexus-infra-analytics` **`v0.2.0`** — analytics tier (`04-analytics`, 20 VMs) extended with the second StarRocks cluster (shared-data, ADR-0037).
+
+Total: 5 ADRs (0033-0037), 1 new System A demo (DEMO-18), 32 apply-time transients diagnosed + fixed in source across the phase (handbook §3 chronologies in 3 repos). Fleet 78 → **93** VMs (lakehouse +16, registry +4, analytics-extension +5; vms.yaml `vm_count: 93`). **Next: Phase 0.I observability** — Prometheus + Grafana + Loki + Tempo + Jaeger; the last infrastructure phase before applications.
+
 ### Added — Phase 0.L.5 StarRocks shared-data tier SEALED (2026-05-26)
 
 - **Second StarRocks cluster SEALED — running parallel to the sealed shared-nothing one.** `nexus-infra-analytics` extended (not a new repo) with a 5-VM cluster on `run_mode=shared_data`: 3 FE BDB-JE quorum (`sr-sd-fe-1/2/3` at `.37`/`.38`/`.39`) + 2 stateless **Compute Nodes** (`sr-sd-cn-1` at `.30`, `sr-sd-cn-2` at `.40` — documented decade-spill from SR `.3x` to first free ClickHouse-decade slot `.40`). Internal cloud-native tables in a MinIO storage volume `nexus_minio_starrocks` → `s3://starrocks/`. Tier `04-analytics` now **20 VMs**. Live-ratified + **cold-rebuild proven** (`smoke-0.L.5.ps1` **69/69 GREEN** with chaos default-on: CN-loss → query still returns full results from shared MinIO; FE-leader-loss → re-election). 5 apply-time transients fixed in source (handbook §3.C): MinIO agent KV-policy v1→v2 gap for new tenants · VMware DHCP-service-stopped on the build host · PowerShell backtick+`.Method` ParserError · `SHOW STORAGE VOLUMES` returns name-only (use `DESC` + `awk`) · StarRocks shared-data `tablet_create_timeout_second=10s` too short for first S3 write.
