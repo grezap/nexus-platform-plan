@@ -4,7 +4,7 @@
 
 metadata:
   updated: 2026-05-27
-  vm_count: 105         # built/cold-rebuild-proven through Phase 0.I.4 (count of the built rows below): edge 1 + foundation 5 (dc-nexus + vault-1/2/3 + vault-transit) + swarm 6 + kafka 15 + oltp 26 (redis 6 + mongo 3 + percona 5 + postgres 8 + sqlserver 4) + analytics 20 (clickhouse 9 + starrocks sn 6 + starrocks-sd 5) + lakehouse 16 + registry 4 + observability-through-0.I.4 12 (prom-1/2 + loki-1/2/3 + tempo-1/2/3 + grafana-1/2 + grafana-pg-1/2). The other 7 rows in this file are NOT yet built: observability 2 (otel-collector-1/2 -- Phase 0.I.5) + platform-tools prefect/unleash/marquez/backstage 4 (future 0.J/0.K) + windows-workstations nexusdesk-dev 1 (app-project dev host).
+  vm_count: 107         # built/cold-rebuild-proven through Phase 0.I.5 (count of the built rows below): edge 1 + foundation 5 (dc-nexus + vault-1/2/3 + vault-transit) + swarm 6 + kafka 15 + oltp 26 (redis 6 + mongo 3 + percona 5 + postgres 8 + sqlserver 4) + analytics 20 (clickhouse 9 + starrocks sn 6 + starrocks-sd 5) + lakehouse 16 + registry 4 + observability-through-0.I.5 14 (prom-1/2 + loki-1/2/3 + tempo-1/2/3 + grafana-1/2 + grafana-pg-1/2 + otel-collector-1/2). The other 5 rows in this file are NOT yet built: platform-tools prefect/unleash/marquez/backstage 4 (future 0.J/0.K) + windows-workstations nexusdesk-dev 1 (app-project dev host).
   host: 10.0.70.101
   hypervisor: VMware Workstation Pro 17.5+
   plan_version: v0.1.5

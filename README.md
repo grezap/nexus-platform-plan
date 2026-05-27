@@ -5,7 +5,7 @@
 This repository is the single source of truth that links the **14 Volumes of design docs**
 (`Vol00-Master-Blueprint` through `Vol13-Portfolio-Presentation`, plus the newly introduced
 `Vol14-Lakehouse-Core`) to **executable work** across 14 application projects, 7 built
-infrastructure repositories, ~75 ADRs, ~150 database tables, and 105 VMs (built/cold-rebuild-proven through Phase 0.I.4).
+infrastructure repositories, ~75 ADRs, ~150 database tables, and 107 VMs (built/cold-rebuild-proven through Phase 0.I.5).
 
 It contains no application code. Every other repo in the portfolio references this one.
 
@@ -15,7 +15,7 @@ It contains no application code. Every other repo in the portfolio references th
 |---|---|
 | Recruiter / non-technical viewer | [`docs/start-here.md`](./docs/start-here.md) — pick a 3–8 min demo scenario |
 | CTO / prospective client | [`MASTER-PLAN.md`](./MASTER-PLAN.md) — full scope, phases, acceptance gates |
-| **DevOps operator / lab rebuilder** | **[`docs/setup-guides.md`](./docs/setup-guides.md) — exact step-by-step replay path for every tier (105 VMs, 9 tiers): which VMs come alive in what order, how to bring each up from zero, selective-ops index ("set up only X")** |
+| **DevOps operator / lab rebuilder** | **[`docs/setup-guides.md`](./docs/setup-guides.md) — exact step-by-step replay path for every tier (107 VMs, 9 tiers): which VMs come alive in what order, how to bring each up from zero, selective-ops index ("set up only X")** |
 | Engineer reading the code | [`docs/skills-coverage.md`](./docs/skills-coverage.md) — which project demonstrates what |
 | Data architect | [`schemas/`](./schemas/) — enterprise DDL per project |
 | DevOps reviewer | [`docs/infra/`](./docs/infra/) — VM inventory, network canon, phase gates |
