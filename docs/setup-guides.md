@@ -12,12 +12,13 @@ cross-env operator order · §1.3 apply · §1.4 verify · §1.5 selective ops �
 §1.6 destroy · §3.1 cold-rebuild canon. This page is the cross-tier index;
 each row links to the canonical detail.
 
-## Inventory — what the lab has built so far (93 VMs cold-rebuild proven across 8 tiers, through Phase 0.L.5)
+## Inventory — what the lab has built so far (105 VMs cold-rebuild proven across 9 tiers, through Phase 0.I.4)
 
 | Tier | Repo | VMs | Phase |
 |---|---|---|---|
 | **00-edge** | `nexus-infra-vmware` (`envs/foundation`) | `nexus-gateway` (1) | 0.B.1 |
-| **01-foundation** | `nexus-infra-vmware` (`envs/foundation` + `envs/security`) | `dc-nexus`, `nexus-jumpbox`, `vault-1/2/3`, `vault-transit` (6) | 0.C.1-0.D.5 |
+| **01-foundation** (core) | `nexus-infra-vmware` (`envs/foundation` + `envs/security`) | `dc-nexus`, `nexus-jumpbox`, `vault-1/2/3`, `vault-transit` (6) | 0.C.1-0.D.5 |
+| **01-foundation** (observability extension) | `nexus-infra-observability` (`envs/obs-prom`, `envs/obs-loki`, `envs/obs-tempo`, `envs/obs-grafana`) | Prom HA `prom-1/2` (2) · Loki SSD `loki-1/2/3` (3) · Tempo `tempo-1/2/3` (3) · Grafana HA `grafana-1/2` + VRRP VIP `.184` (2) · Grafana PG HA `grafana-pg-1/2` + VRRP VIP `.185` (2) — 12 obs nodes + 2 VIPs | 0.I.1-0.I.4 |
 | **06-orchestration** | `nexus-infra-swarm-nomad` (`envs/swarm-nomad`) | `swarm-manager-1/2/3`, `swarm-worker-1/2/3` (6) | 0.E |
 | **03-kafka** | `nexus-infra-kafka` (`envs/kafka`) | `kafka-east-1/2/3`, `kafka-west-1/2/3`, `schema-registry-1/2`, `kafka-rest-1`, `kafka-connect-1/2`, `ksqldb-1/2`, `mm2-1/2` (15) | 0.H |
 | **05-oltp** | `nexus-infra-oltp` (per-cluster envs: `envs/oltp-redis`, `envs/oltp-mongo`, `envs/oltp-percona`, `envs/oltp-patroni`) | `redis-1..6` (6) · `mongo-1/2/3` (3) · `pxc-1/2/3` + `proxysql-1/2` (5) · `pg-primary` + `pg-replica-1/2` + `etcd-1/2/3` + `haproxy-pg-1/2` (8) — VRRP VIPs `.50` (proxysql) + `.60` (haproxy-pg). | 0.G.1-0.G.4 |
@@ -25,7 +26,7 @@ each row links to the canonical detail.
 | **08-spark** | `nexus-infra-lakehouse` (`envs/lakehouse-minio`, `envs/lakehouse-iceberg`, `envs/lakehouse-spark`) | MinIO `minio-1..4` (4) · Iceberg `iceberg-rest-1/2` + `iceberg-pg-1/2` + VIP `.151` (4) · Spark `spark-master-1/2` + `spark-worker-1/2/3` + `zookeeper-1/2/3` (8) | 0.L.1-0.L.3 |
 | **09-platform** | `nexus-infra-registry` (`envs/registry-harbor`) | Harbor app `registry-1/2` (2) · datastore `registry-pg-1/2` + VRRP VIP `registry-db .119` (2) | 0.L.4 |
 
-**Total: 93 VMs cold-rebuild proven (through Phase 0.L.5). All sealed tiers tagged on their repos; lakehouse + registry + analytics-extension close out at 0.L.6 (tags: lakehouse `v0.1.0`, registry `v0.1.0`, analytics `v0.2.0`). Phase 0.I observability (obs-metrics/tracing/logging) + the future platform tools + the 0.M-0.P sharding tiers are not yet built.**
+**Total: 105 VMs + 5 VRRP VIPs cold-rebuild proven (through Phase 0.I.4). All sealed tiers tagged on their repos; observability close-out at 0.I.7 (tag `nexus-infra-observability v0.1.0`). The remaining 0.I.5 (OTel Collector pair) + 0.I.6 (fleet-wide shipper rollout) + the 0.M-0.P sharding tiers + future platform tools are not yet built.**
 
 ## Per-tier from-zero replay matrix
 
