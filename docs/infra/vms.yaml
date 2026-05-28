@@ -308,6 +308,42 @@ clusters:
       - { name: mongo-2, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.72, vmnet11: 192.168.70.72, dir: H:\VMS\NexusPlatform\05-oltp\mongo-2, role: "Replica set secondary" }
       - { name: mongo-3, os: deb13, vcpu: 4, ram_gb: 8, disk_gb: 200, vmnet10: 192.168.10.73, vmnet11: 192.168.70.73, dir: H:\VMS\NexusPlatform\05-oltp\mongo-3, role: "Replica set secondary" }
 
+  # Phase 0.N -- MongoDB sharded cluster (separate from the 0.G.2 RS above, per ADR-0040).
+  # Adds the document-store *sharding* showcase the 3-node RS doesn't demonstrate.
+  # 3 config-servers (own RS named "config") + 2 shard RSes (3 nodes each, named "shard-1" / "shard-2")
+  # + 2 mongos query routers (stateless; round-robin DNS `mongos.nexus.lab`).
+  # Reuses the oltp-mongo-node Packer template (extended in Phase 0.N to include `mongodb-org-mongos`).
+  # 2 GB RAM per node (mongod cacheSize 0.5 GB; mongos < 200 MB).
+  mongo-sharded:
+    purpose: MongoDB sharded cluster (Phase 0.N -- config RS + 2 shard RSes + 2 mongos)
+    phase: 0.N
+    architecture: |
+      Standard MongoDB sharded topology. 3 config-servers form their own
+      replica set (named "config", `sharding.clusterRole=configsvr`), holding
+      cluster metadata. 2 shard replica sets (named "shard-1" / "shard-2",
+      each 3 nodes with `sharding.clusterRole=shardsvr`) hold data. 2 stateless
+      mongos query routers parse client connections, query the config-server
+      cluster for chunk locations, and route reads/writes to the correct
+      shard. Clients connect to `mongos.nexus.lab` (round-robin DNS over
+      .58/.59); the mongos pair load-balances + each fails over independently.
+      mTLS via Vault PKI `mongo-server` role (same as 0.G.2 RS). keyFile auth
+      shared across the entire sharded cluster (all nodes auth each other with
+      the same keyFile for internal cluster traffic).
+    virtual_ips:
+      mongos_dns: 192.168.70.58 + 192.168.70.59   # round-robin DNS, no VIP (per ADR-0031 for write paths)
+    nodes:
+      - { name: mongo-cfg-1,     os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.74, vmnet11: 192.168.70.74, dir: H:\VMS\NexusPlatform\05-oltp\mongo-cfg-1,     role: "config-server RS member, initial PRIMARY for rs.initiate" }
+      - { name: mongo-cfg-2,     os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.75, vmnet11: 192.168.70.75, dir: H:\VMS\NexusPlatform\05-oltp\mongo-cfg-2,     role: "config-server RS member" }
+      - { name: mongo-cfg-3,     os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.76, vmnet11: 192.168.70.76, dir: H:\VMS\NexusPlatform\05-oltp\mongo-cfg-3,     role: "config-server RS member" }
+      - { name: mongo-shard-1-1, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.77, vmnet11: 192.168.70.77, dir: H:\VMS\NexusPlatform\05-oltp\mongo-shard-1-1, role: "shard-1 RS member, initial PRIMARY" }
+      - { name: mongo-shard-1-2, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.78, vmnet11: 192.168.70.78, dir: H:\VMS\NexusPlatform\05-oltp\mongo-shard-1-2, role: "shard-1 RS member" }
+      - { name: mongo-shard-1-3, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.79, vmnet11: 192.168.70.79, dir: H:\VMS\NexusPlatform\05-oltp\mongo-shard-1-3, role: "shard-1 RS member" }
+      - { name: mongo-shard-2-1, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.80, vmnet11: 192.168.70.80, dir: H:\VMS\NexusPlatform\05-oltp\mongo-shard-2-1, role: "shard-2 RS member, initial PRIMARY" }
+      - { name: mongo-shard-2-2, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.56, vmnet11: 192.168.70.56, dir: H:\VMS\NexusPlatform\05-oltp\mongo-shard-2-2, role: "shard-2 RS member -- decade-spill .80 -> .56 (free slot)" }
+      - { name: mongo-shard-2-3, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.57, vmnet11: 192.168.70.57, dir: H:\VMS\NexusPlatform\05-oltp\mongo-shard-2-3, role: "shard-2 RS member" }
+      - { name: mongo-mongos-1,  os: deb13, vcpu: 2, ram_gb: 1, disk_gb: 40, vmnet10: 192.168.10.58, vmnet11: 192.168.70.58, dir: H:\VMS\NexusPlatform\05-oltp\mongo-mongos-1,  role: "mongos query router; stateless; clients connect here" }
+      - { name: mongo-mongos-2,  os: deb13, vcpu: 2, ram_gb: 1, disk_gb: 40, vmnet10: 192.168.10.59, vmnet11: 192.168.70.59, dir: H:\VMS\NexusPlatform\05-oltp\mongo-mongos-2,  role: "mongos query router; round-robin DNS partner of mongos-1" }
+
   redis:
     purpose: Redis Cluster 3 shards × 2 replicas
     phase: 0.G
