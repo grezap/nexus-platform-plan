@@ -149,7 +149,7 @@ Complete VM → IP map lives in [`vms.yaml`](./vms.yaml).
 ## DNS
 
 - `nexus-gateway` runs a `dnsmasq` DNS forwarder — authoritative for `*.nexus.local`, forwards everything else to `1.1.1.1` / `1.0.0.1`.
-- `dc-nexus` (192.168.70.10) runs Active Directory DNS once built. Windows VMs join AD domain `nexus.local`.
+- `dc-nexus` (192.168.70.240; canon `.10` per `vms.yaml`, pre-existing canon-vs-reality drift) runs Active Directory DNS for the `nexus.lab` forest. `dc-nexus-2` (192.168.70.242; canon `.11` — drift parallel to dc-nexus, see ADR-0039) is the foundation HA replica added in Phase 0.M, multi-master replication + replicated `nexus.lab` zone. Windows VMs join AD domain `nexus.lab`; DC Locator failover gives auth/DNS continuity on single-DC loss.
 - Linux VMs use `nexus-gateway` (192.168.70.1) as primary resolver.
 - Service names (e.g. `grafana.nexus.lab`, `sql-ag-listener.nexus.local`) resolve host-wide from the workstation by adding `192.168.70.1` as a secondary DNS on `VMware Network Adapter VMnet11`.
 - **Round-robin (multi-A) `host-record` entries** on `nexus-gateway`'s dnsmasq give cluster front doors a single stable name resolving to all member nodes (resolvers rotate; the engines' native multi-host clients retry the next on failure):

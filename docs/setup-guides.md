@@ -26,7 +26,7 @@ each row links to the canonical detail.
 | **08-spark** | `nexus-infra-lakehouse` (`envs/lakehouse-minio`, `envs/lakehouse-iceberg`, `envs/lakehouse-spark`) | MinIO `minio-1..4` (4) · Iceberg `iceberg-rest-1/2` + `iceberg-pg-1/2` + VIP `.151` (4) · Spark `spark-master-1/2` + `spark-worker-1/2/3` + `zookeeper-1/2/3` (8) | 0.L.1-0.L.3 |
 | **09-platform** | `nexus-infra-registry` (`envs/registry-harbor`) | Harbor app `registry-1/2` (2) · datastore `registry-pg-1/2` + VRRP VIP `registry-db .119` (2) | 0.L.4 |
 
-**Total: 107 VMs + 5 VRRP VIPs cold-rebuild proven (through Phase 0.I.5). All sealed tiers tagged on their repos; observability close-out at 0.I.7 (tag `nexus-infra-observability v0.1.0`). The remaining 0.I.6 (fleet-wide Vector + node_exporter shipper rollout) + the 0.M-0.P sharding tiers + future platform tools are not yet built.**
+**Total: 108 VMs + 5 VRRP VIPs cold-rebuild proven (through Phase 0.M). All sealed tiers tagged on their repos; observability tagged `nexus-infra-observability v0.1.0`; foundation HA partner `dc-nexus-2` ratified + cold-rebuild-proven 2026-05-28 (ADR-0039, smoke-0.M 24/24). The remaining 0.N-0.P sharding tiers + future platform tools are not yet built.**
 
 ## Per-tier from-zero replay matrix
 
