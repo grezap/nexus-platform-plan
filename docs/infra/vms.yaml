@@ -52,7 +52,11 @@ clusters:
     purpose: AD, DNS, HashiCorp Vault
     phase: 0.A-0.D
     nodes:
-      - { name: dc-nexus,     os: ws2025-desktop, vcpu: 2, ram_gb: 4,  disk_gb: 60,  vmnet10: 192.168.10.10, vmnet11: 192.168.70.10, dir: H:\VMS\NexusPlatform\01-foundation\dc-nexus,     role: "AD DC + DNS" }
+      - { name: dc-nexus,     os: ws2025-desktop, vcpu: 2, ram_gb: 4,  disk_gb: 60,  vmnet10: 192.168.10.10, vmnet11: 192.168.70.10, dir: H:\VMS\NexusPlatform\01-foundation\dc-nexus,     role: "AD DC + DNS (forest root; Phase 0.C)" }
+      # Phase 0.M -- 2nd AD DC for forest HA. Replication partner of dc-nexus
+      # via Install-ADDSDomainController; cross-site DNS replica; survives
+      # single-DC loss without auth/DNS outage.
+      - { name: dc-nexus-2,   os: ws2025-desktop, vcpu: 2, ram_gb: 4,  disk_gb: 60,  vmnet10: 192.168.10.11, vmnet11: 192.168.70.11, dir: H:\VMS\NexusPlatform\01-foundation\dc-nexus-2,   role: "AD DC + DNS replica (foundation HA partner; Phase 0.M)" }
       # Vault Raft nodes -- ram_gb dropped 4 -> 2 (approved deviation, ratified 0.D.4 close-out 2026-05-02).
       # Vault runs comfortably at 2 GB at lab scale (3-node cluster + KV-v2 + PKI + LDAP at well under
       # 50 % of the 2 GB). Build host RAM is the binding constraint per
