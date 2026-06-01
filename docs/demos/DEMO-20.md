@@ -11,6 +11,7 @@ Personas: **infra engineer** (HA verification), **data engineer** (sharded query
 - **Environment target** — `full` (or any env with Phase 0.N applied).
 - **VMs required** — `nexus-gateway` · 3 config-server nodes (`mongo-cfg-1/2/3`) · 6 shard nodes (`mongo-shard-1-1..3` + `mongo-shard-2-1..3`) · 2 mongos routers (`mongo-mongos-1/2`). Detail in [`docs/infra/vms.yaml`](../infra/vms.yaml) cluster `mongo-sharded`.
 - **External services** — Vault KV `nexus/oltp/mongo/keyfile` (shared cluster keyFile, sticky-seeded by 0.G.2).
+- **Client auth** — sharded-cluster clients authenticate as `nexus-sharded-admin` (role `root`) against the `admin` DB. This user is created on the config-server PRIMARY by `role-overlay-mongo-add-shards.tf` (password = keyFile content in v1); `__system`/keyFile auth cannot be used through mongos (the `local` DB is forbidden there). 0.N.1 hardening moves this to a Vault-seeded credential + x509.
 - **Seed data** — `nexus_n_smoke.samples` (200 docs hashed-sharded on `k`, seeded by `role-overlay-mongo-add-shards.tf` at first apply).
 - **Expected duration** — 8–10 min wall-clock.
 - **Reset command** — `nexus-cli demo run DEMO-20 --reset` (power any stopped shard nodes back on; wait for replication catch-up).
@@ -94,4 +95,4 @@ Round-robin DNS `mongos.nexus.lab → .58, .59`. Static fallback at `assets/DEMO
 - **.NET engineering + architecture** — mongos's session-level retry semantics + readPreference + writeConcern make sharded-cluster failover invisible to a well-written client (set `retryWrites=true`, default in Mongo 4.4+).
 - **Advanced SQL + analytics** — N/A (NoSQL document store; sharding key design IS the analytic dimension).
 - **Python** — `pymongo` MongoClient with the 2-host seed list (`mongos.nexus.lab`) is the same shape; auto-handles router-level retry on failover.
-- **DevOps** — replica-set + sharded-cluster composition (each shard is a 3-node RS); sub-15s failover with zero client-side intervention; cold-rebuild proven from zero in ~45 min.
+- **DevOps** — replica-set + sharded-cluster composition (each shard is a 3-node RS); sub-15s failover with zero client-side intervention. Live-ratified + **cold-rebuild-proven** 2026-05-30 (smoke 50/50 both times; from-zero template rebuild → destroy → apply → smoke, handbook §3.Nb).

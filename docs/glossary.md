@@ -160,7 +160,11 @@ A **Linux daemon implementing VRRPv3** (Virtual Router Redundancy Protocol). Flo
 
 ### MongoDB
 A **document database**. Stores JSON-shaped records ("documents") with a flexible schema. Horizontal scaling via sharding, HA via replica sets.
-*In NexusPlatform:* `localmind`, `visioncore`, `fieldsync`.
+*In NexusPlatform:* `localmind`, `visioncore`, `fieldsync`. Phase 0.G.2 ships a 3-node **replica set** (HA showcase); Phase 0.N ships a **sharded cluster** (horizontal-scaling showcase) — see below.
+
+### MongoDB sharded cluster (mongos · config server · shard)
+A MongoDB cluster that partitions a collection's documents across multiple **shards** by a **shard key** (range or hashed), giving horizontal write/storage scale beyond one replica set. Three roles: a **shard** is a replica set holding a subset of the data (chunks); the **config server** is its own replica set holding cluster metadata (which chunk lives on which shard); **`mongos`** is a stateless query *router* — clients connect to it, it reads chunk locations from the config servers and routes each operation to the owning shard. Sharding (partitioning) and replication (per-shard RS) compose: each shard tolerates a node loss independently.
+*In NexusPlatform:* Phase 0.N — 3 config-server RS (`config`, port 27019) + 2 shard RSes (`shard-1`/`shard-2`, port 27018, 3 nodes each) + 2 `mongos` routers (port 27017, round-robin DNS `mongos.nexus.lab`). keyFile internal auth; clients auth as `nexus-sharded-admin` against the admin DB (mongos forbids the `local` DB that `__system` uses). Distinct from the 0.G.2 replica set — the RS is the *replication* showcase, the sharded cluster the *sharding* showcase ([ADR-0040](adr/ADR-0040-mongodb-sharded-cluster-separate-from-0g2-rs.md)).
 
 ### Redis Cluster
 **Sharded in-memory key-value store**. Sub-millisecond latency for caching, rate limiting, pub/sub. The cluster mode shards keys across multiple shards with replicas per shard.

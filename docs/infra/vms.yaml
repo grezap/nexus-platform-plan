@@ -4,7 +4,7 @@
 
 metadata:
   updated: 2026-05-28
-  vm_count: 108         # built/cold-rebuild-proven through Phase 0.M (count of the built rows below): edge 1 + foundation 6 (dc-nexus + dc-nexus-2 + vault-1/2/3 + vault-transit) + swarm 6 + kafka 15 + oltp 26 (redis 6 + mongo 3 + percona 5 + postgres 8 + sqlserver 4) + analytics 20 (clickhouse 9 + starrocks sn 6 + starrocks-sd 5) + lakehouse 16 + registry 4 + observability 14 (prom-1/2 + loki-1/2/3 + tempo-1/2/3 + grafana-1/2 + grafana-pg-1/2 + otel-collector-1/2). The other 5 rows in this file are NOT yet built: platform-tools prefect/unleash/marquez/backstage 4 (future 0.J/0.K) + windows-workstations nexusdesk-dev 1 (app-project dev host).
+  vm_count: 119         # built/cold-rebuild-proven through Phase 0.N (count of the built rows below; 0.N live-ratified + cold-rebuild-proven 2026-05-30, smoke 50/50): edge 1 + foundation 6 (dc-nexus + dc-nexus-2 + vault-1/2/3 + vault-transit) + swarm 6 + kafka 15 + oltp 37 (redis 6 + mongo 3 + percona 5 + postgres 8 + sqlserver 4 + mongo-sharded 11) + analytics 20 (clickhouse 9 + starrocks sn 6 + starrocks-sd 5) + lakehouse 16 + registry 4 + observability 14 (prom-1/2 + loki-1/2/3 + tempo-1/2/3 + grafana-1/2 + grafana-pg-1/2 + otel-collector-1/2). The other 5 rows in this file are NOT yet built: platform-tools prefect/unleash/marquez/backstage 4 (future 0.J/0.K) + windows-workstations nexusdesk-dev 1 (app-project dev host).
   host: 10.0.70.101
   hypervisor: VMware Workstation Pro 17.5+
   plan_version: v0.1.5
@@ -326,9 +326,11 @@ clusters:
       cluster for chunk locations, and route reads/writes to the correct
       shard. Clients connect to `mongos.nexus.lab` (round-robin DNS over
       .58/.59); the mongos pair load-balances + each fails over independently.
-      mTLS via Vault PKI `mongo-server` role (same as 0.G.2 RS). keyFile auth
-      shared across the entire sharded cluster (all nodes auth each other with
-      the same keyFile for internal cluster traffic).
+      Auth (v1): keyFile internal cluster auth shared across all 11 nodes (no
+      TLS on the wire). Client ops via mongos authenticate as `nexus-sharded-admin`
+      (role root, in the admin DB on the config servers) -- `__system`/keyFile
+      cannot be used through mongos. mTLS via Vault PKI (parity with the 0.G.2 RS)
+      is the 0.N.1 hardening, deferred per ADR-0040.
     virtual_ips:
       mongos_dns: 192.168.70.58 + 192.168.70.59   # round-robin DNS, no VIP (per ADR-0031 for write paths)
     nodes:
@@ -343,6 +345,43 @@ clusters:
       - { name: mongo-shard-2-3, os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.57, vmnet11: 192.168.70.57, dir: H:\VMS\NexusPlatform\05-oltp\mongo-shard-2-3, role: "shard-2 RS member" }
       - { name: mongo-mongos-1,  os: deb13, vcpu: 2, ram_gb: 1, disk_gb: 40, vmnet10: 192.168.10.58, vmnet11: 192.168.70.58, dir: H:\VMS\NexusPlatform\05-oltp\mongo-mongos-1,  role: "mongos query router; stateless; clients connect here" }
       - { name: mongo-mongos-2,  os: deb13, vcpu: 2, ram_gb: 1, disk_gb: 40, vmnet10: 192.168.10.59, vmnet11: 192.168.70.59, dir: H:\VMS\NexusPlatform\05-oltp\mongo-mongos-2,  role: "mongos query router; round-robin DNS partner of mongos-1" }
+
+  vitess:
+    purpose: Vitess-sharded MySQL/Percona cluster (Phase 0.O -- NEW repo nexus-infra-vitess, tier 07-vitess)
+    phase: 0.O
+    # RESERVED at the 0.O design session (ADR-0041); NOT yet built -> NOT in metadata.vm_count
+    # until live-ratified. 12 VMs. MAC pool :CB-:D6 (primary) / :01:CB-:D6 (secondary) --
+    # pre-apply audit ALL CLEAR vs every foundation reservation file.
+    architecture: |
+      Vitess shards MySQL horizontally behind a MySQL-protocol query router.
+      Topology: a 3-node etcd quorum is the global+local (cell `nexus`) topo
+      server. vtctld (+ vtctldclient) is the admin/topology control plane;
+      VTOrc co-resides on the same control node and does automated
+      failover/reparenting. 2 stateless vtgate routers (round-robin DNS
+      `vtgate.nexus.lab`, MySQL protocol on :15306, no VIP per ADR-0031) are
+      the client front door. Keyspace `commerce` is split into 2 shards
+      (`-80` / `80-`, hash vindex on the sharding key); each shard = 1 PRIMARY
+      + 2 REPLICA tablets, each tablet a (vttablet sidecar + local Percona
+      Server 8.0 mysqld managed via mysqlctld) pair. Full Vault-PKI mTLS on
+      every gRPC channel (vtgate<->vttablet, vtctld<->vttablet, VTOrc<->vttablet,
+      *<->etcd) + the mysqld wire + the vtgate MySQL listener (`vitess-server`
+      PKI role). Intra-cluster gRPC + MySQL replication ride the VMnet10
+      backplane; SSH + the client vtgate port ride VMnet11.
+    virtual_ips:
+      vtgate_dns: 192.168.70.194 + 192.168.70.195   # round-robin DNS, no VIP (ADR-0031)
+    nodes:
+      - { name: vitess-etcd-1,           os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.190, vmnet11: 192.168.70.190, dir: H:\VMS\NexusPlatform\07-vitess\vitess-etcd-1,           role: "etcd topo server (global+local)" }
+      - { name: vitess-etcd-2,           os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.191, vmnet11: 192.168.70.191, dir: H:\VMS\NexusPlatform\07-vitess\vitess-etcd-2,           role: "etcd topo server" }
+      - { name: vitess-etcd-3,           os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.192, vmnet11: 192.168.70.192, dir: H:\VMS\NexusPlatform\07-vitess\vitess-etcd-3,           role: "etcd topo server" }
+      - { name: vitess-control-1,        os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.193, vmnet11: 192.168.70.193, dir: H:\VMS\NexusPlatform\07-vitess\vitess-control-1,        role: "vtctld + VTOrc control plane" }
+      - { name: vitess-vtgate-1,         os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.194, vmnet11: 192.168.70.194, dir: H:\VMS\NexusPlatform\07-vitess\vitess-vtgate-1,         role: "vtgate query router; clients connect here (MySQL :15306)" }
+      - { name: vitess-vtgate-2,         os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40, vmnet10: 192.168.10.195, vmnet11: 192.168.70.195, dir: H:\VMS\NexusPlatform\07-vitess\vitess-vtgate-2,         role: "vtgate query router; round-robin DNS partner" }
+      - { name: vitess-shard1-tablet-1,  os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 60, vmnet10: 192.168.10.196, vmnet11: 192.168.70.196, dir: H:\VMS\NexusPlatform\07-vitess\vitess-shard1-tablet-1,  role: "shard -80 tablet, initial PRIMARY (vttablet + Percona)" }
+      - { name: vitess-shard1-tablet-2,  os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 60, vmnet10: 192.168.10.197, vmnet11: 192.168.70.197, dir: H:\VMS\NexusPlatform\07-vitess\vitess-shard1-tablet-2,  role: "shard -80 REPLICA tablet" }
+      - { name: vitess-shard1-tablet-3,  os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 60, vmnet10: 192.168.10.198, vmnet11: 192.168.70.198, dir: H:\VMS\NexusPlatform\07-vitess\vitess-shard1-tablet-3,  role: "shard -80 REPLICA tablet" }
+      - { name: vitess-shard2-tablet-1,  os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 60, vmnet10: 192.168.10.199, vmnet11: 192.168.70.199, dir: H:\VMS\NexusPlatform\07-vitess\vitess-shard2-tablet-1,  role: "shard 80- tablet, initial PRIMARY (vttablet + Percona)" }
+      - { name: vitess-shard2-tablet-2,  os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 60, vmnet10: 192.168.10.200, vmnet11: 192.168.70.200, dir: H:\VMS\NexusPlatform\07-vitess\vitess-shard2-tablet-2,  role: "shard 80- REPLICA tablet" }
+      - { name: vitess-shard2-tablet-3,  os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 60, vmnet10: 192.168.10.201, vmnet11: 192.168.70.201, dir: H:\VMS\NexusPlatform\07-vitess\vitess-shard2-tablet-3,  role: "shard 80- REPLICA tablet" }
 
   redis:
     purpose: Redis Cluster 3 shards × 2 replicas

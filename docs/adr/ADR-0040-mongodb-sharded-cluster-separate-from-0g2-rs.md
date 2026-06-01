@@ -31,7 +31,7 @@ Build a **completely independent** sharded cluster (11 NEW VMs: 3 config + 2×3 
 
 8. **Simpler keyFile distribution (no per-host Vault Agent).** Operator fetches the keyFile content from KV on the build host via `vault kv get`, SCPs to each of the 11 nodes at `/etc/nexus-mongo/keyfile` (0400 mongodb:mongodb). Avoids extending the security env with 11 new AppRoles. The 0.N.1 enhancement moves to the per-host Vault Agent pattern (which also gives cert rotation).
 
-9. **IP allocation in free OLTP slots:** cfg .74/.75/.76, shard-1 .77/.78/.79, shard-2 .80/.56/.57, mongos .58/.59. The .80→.56 decade spill mirrors the 0.L.5 SR-shared-data `.30`/`.40` slot decision when the natural decade ran out of contiguous space. MAC pool :8A-:94 (11 contiguous after the SQL Server FCI block ending at :89).
+9. **IP allocation in free OLTP slots:** cfg .74/.75/.76, shard-1 .77/.78/.79, shard-2 .80/.56/.57, mongos .58/.59. The .80→.56 decade spill mirrors the 0.L.5 SR-shared-data `.30`/`.40` slot decision when the natural decade ran out of contiguous space. MAC pool **`:C0–:CA`** (11 contiguous after the observability tier ending at `:BF`) — corrected from the initially-proposed `:8A–:94`, which collided with the analytics tier (ClickHouse `:8A–:92` + StarRocks `:93–:94`); the conflict surfaced as a runtime DHCP collision at first apply. See `feedback_mac_pool_pre_apply_audit.md` (the pre-apply MAC-uniqueness grep that now guards every new tier).
 
 ## Consequences
 
