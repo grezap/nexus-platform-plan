@@ -362,7 +362,7 @@ clusters:
       the client front door. Keyspace `commerce` is split into 2 shards
       (`-80` / `80-`, hash vindex on the sharding key); each shard = 1 PRIMARY
       + 2 REPLICA tablets, each tablet a (vttablet sidecar + local Percona
-      Server 8.0 mysqld managed via mysqlctld) pair. Full Vault-PKI mTLS on
+      Server 8.4 LTS mysqld managed via mysqlctld) pair; Vitess v24.0.1. Full Vault-PKI mTLS on
       every gRPC channel (vtgate<->vttablet, vtctld<->vttablet, VTOrc<->vttablet,
       *<->etcd) + the mysqld wire + the vtgate MySQL listener (`vitess-server`
       PKI role). Intra-cluster gRPC + MySQL replication ride the VMnet10
