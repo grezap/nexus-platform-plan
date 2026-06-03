@@ -4,8 +4,8 @@
 
 This repository is the single source of truth that links the **14 Volumes of design docs**
 (`Vol00-Master-Blueprint` through `Vol13-Portfolio-Presentation`, plus the newly introduced
-`Vol14-Lakehouse-Core`) to **executable work** across 14 application projects, 7 built
-infrastructure repositories, ~75 ADRs, ~150 database tables, and 108 VMs (built/cold-rebuild-proven through Phase 0.M).
+`Vol14-Lakehouse-Core`) to **executable work** across 14 application projects, 9 built
+infrastructure repositories, ~75 ADRs, ~150 database tables, and 131 VMs (built/cold-rebuild-proven through Phase 0.O).
 
 It contains no application code. Every other repo in the portfolio references this one.
 
@@ -15,7 +15,7 @@ It contains no application code. Every other repo in the portfolio references th
 |---|---|
 | Recruiter / non-technical viewer | [`docs/start-here.md`](./docs/start-here.md) — pick a 3–8 min demo scenario |
 | CTO / prospective client | [`MASTER-PLAN.md`](./MASTER-PLAN.md) — full scope, phases, acceptance gates |
-| **DevOps operator / lab rebuilder** | **[`docs/setup-guides.md`](./docs/setup-guides.md) — exact step-by-step replay path for every tier (108 VMs, 9 tiers): which VMs come alive in what order, how to bring each up from zero, selective-ops index ("set up only X")** |
+| **DevOps operator / lab rebuilder** | **[`docs/setup-guides.md`](./docs/setup-guides.md) — exact step-by-step replay path for every tier (131 VMs, 10 tiers): which VMs come alive in what order, how to bring each up from zero, selective-ops index ("set up only X")** |
 | Engineer reading the code | [`docs/skills-coverage.md`](./docs/skills-coverage.md) — which project demonstrates what |
 | Data architect | [`schemas/`](./schemas/) — enterprise DDL per project |
 | DevOps reviewer | [`docs/infra/`](./docs/infra/) — VM inventory, network canon, phase gates |
@@ -23,7 +23,7 @@ It contains no application code. Every other repo in the portfolio references th
 ## Portfolio scope at a glance
 
 - **14 application projects** (Clean Arch / Vertical Slice / Modular Monolith / Microservices)
-- **7 built infrastructure repos** (vmware, swarm-nomad, kafka, oltp, analytics, lakehouse, registry) + planned (k8s, vitess/citus sharding, shared NuGets)
+- **9 built infrastructure repos** (vmware, swarm-nomad, kafka, oltp, analytics, lakehouse, registry, observability, vitess) + planned (k8s, citus sharding, shared NuGets)
 - **30 enhancements** (E1–E30) layered on top of the Volume docs to reach enterprise caliber
 - **17 guided demo scenarios** (DEMO-01 → DEMO-17, incl. the analytics/lakehouse/registry infra tours), auto-recorded via Playwright + VHS
 - **Four skill dimensions** every project demonstrates: .NET engineering & architecture, advanced SQL & analytics, Python, DevOps literacy
@@ -53,7 +53,8 @@ Changes to canon (network, enhancements, gates) land here first, then propagate 
   - `grezap/nexus-infra-lakehouse` **`v0.1.0`** — 0.L.1 MinIO + 0.L.2 Iceberg/Nessie (dedicated PG HA) + 0.L.3 Spark HA (ZooKeeper-elected) all SEALED (live-ratified + cold-rebuild-proven; smoke gates 41/41 · 28/28 · 28/28 GREEN; ADRs 0033-0035)
   - `grezap/nexus-infra-registry` **`v0.1.0`** — 0.L.4 HA Harbor SEALED (2 app nodes round-robin + dedicated PG/Redis HA + MinIO S3 blobs + Trivy + cosign + Vault OIDC; `smoke-0.L.4.ps1` 41/41 GREEN; ADR-0036)
   - `grezap/nexus-infra-analytics` **`v0.2.0`** — 0.L.5 StarRocks shared-data SEALED (3 FE BDB-JE + 2 stateless Compute Nodes, MinIO storage volume `s3://starrocks/`, dedicated `nexus-starrocks-app` identity + scoped `starrocks-tenant` policy, `smoke-0.L.5.ps1` 69/69 GREEN with CN-loss chaos default-on; ADR-0037)
-- Next: **Phase 0.I observability** (Prometheus + Grafana + Loki + Tempo + Jaeger; the last infrastructure phase before applications).
+- **Phase 0.O (nexus-infra-vitess — Vitess-sharded MySQL) ✅ SEALED 2026-06-03** — `grezap/nexus-infra-vitess` **`v0.1.0`**, **12 VMs on tier `07-vitess`** (3 etcd topo + vtctld/VTOrc control + 2 vtgate routers + 2 shards × 3 Percona tablets): keyspace `commerce`, 2 shards (`-80`/`80-`) on a **hash vindex**, **Vitess v24.0.1** + **Percona Server 8.4 LTS** + **etcd 3.5.16**, full Vault-PKI mTLS on every gRPC channel + the mysqld wire + the vtgate MySQL listener. Live-ratified **and cold-rebuild-proven** (`smoke-0.O.ps1` **71/71 GREEN** both times); proven hash-vindex sharding (100 rows split 53/47) + VTOrc auto-reparent-on-primary-kill (~15s); ADR-0041. Adds the **relational (MySQL) sharding** showcase that PXC/Galera *replication* (0.G.3) doesn't provide.
+- Next: **Phase 0.P (nexus-infra-citus — PostgreSQL sharding)**, the last committed sharding phase before applications.
 
 ### Roadmap (status 2026-05-25)
 
@@ -65,10 +66,10 @@ INFRASTRUCTURE
        0.L.4 Harbor HA                                      ✅ SEALED (nexus-infra-registry; ADR-0036)
        0.L.5 StarRocks shared-data/CN                       ✅ SEALED (nexus-infra-analytics extension; ADR-0037; smoke 69/69 with chaos)
        0.L.6 close-out (3 tags)                              ✅ COMPLETE 2026-05-26 (lakehouse v0.1.0 + registry v0.1.0 + analytics v0.2.0)
-  3. 0.I          Observability (LAST — monitors full fleet)
-  4. 0.M          2nd AD DC (foundation HA)
-  5. 0.N          MongoDB sharded cluster (extends nexus-infra-oltp)
-  6. 0.O          nexus-infra-vitess  (MySQL sharding — NEW repo)
+  3. 0.I          Observability (LAST — monitors full fleet)   ✅ SEALED (nexus-infra-observability v0.1.0)
+  4. 0.M          2nd AD DC (foundation HA)                     ✅ SEALED (ADR-0039)
+  5. 0.N          MongoDB sharded cluster (extends nexus-infra-oltp)  ✅ SEALED (ADR-0040; smoke 50/50)
+  6. 0.O          nexus-infra-vitess  (MySQL sharding — NEW repo)     ✅ SEALED (nexus-infra-vitess v0.1.0; ADR-0041; smoke 71/71)
   7. 0.P          nexus-infra-citus   (PostgreSQL sharding — NEW repo)
         ↓
   nexus-cli adapters  — 7 base + VitessAdapter + CitusAdapter + sharded-Mongo
@@ -91,6 +92,7 @@ See [`CHANGELOG.md`](./CHANGELOG.md) for canon history and [`MASTER-PLAN.md`](./
 - [`grezap/nexus-infra-analytics`](https://github.com/grezap/nexus-infra-analytics) — Tier-4 analytics — **`v0.1.0` SEALED 2026-05-23** (15 VMs). ClickHouse (3 shards × 2 replicas + 3-node Keeper, 0.G.5) + StarRocks (3 FE + 3 BE shared-nothing, 0.G.6); round-robin DNS front door, no VIP (ADR-0031). Both live-ratified + cold-rebuild-proven.
 - [`grezap/nexus-infra-lakehouse`](https://github.com/grezap/nexus-infra-lakehouse) — lakehouse tier (`08-spark`, 16 VMs) — **0.L.1 MinIO + 0.L.2 Iceberg/Nessie (dedicated PG HA) + 0.L.3 Spark HA (ZooKeeper-elected) all SEALED** (cold-rebuild-proven; ADRs 0033-0035). End-to-end Spark→Iceberg→MinIO write path.
 - [`grezap/nexus-infra-registry`](https://github.com/grezap/nexus-infra-registry) — registry tier (`09-platform`, 4 VMs + VIP) — **0.L.4 HA Harbor SEALED 2026-05-25** (cold-rebuild-proven; ADR-0036): 2 stateless app nodes + dedicated PG/Redis HA datastore; MinIO S3 blobs; Trivy + cosign; Vault OIDC SSO.
+- [`grezap/nexus-infra-vitess`](https://github.com/grezap/nexus-infra-vitess) — Vitess-sharded MySQL tier (`07-vitess`, 12 VMs) — **`v0.1.0` SEALED 2026-06-03** (live-ratified + cold-rebuild-proven; `smoke-0.O.ps1` 71/71 GREEN; ADR-0041). 3 etcd topo + vtctld/VTOrc control + 2 vtgate routers (RR-DNS `vtgate.nexus.lab`, MySQL `:15306`) + 2 shards × 3 Percona Server 8.4 tablets; keyspace `commerce`, hash vindex, Vitess v24.0.1; full Vault-PKI mTLS. The **relational (MySQL) sharding** showcase (distinct from PXC/Galera *replication*, 0.G.3).
 - [`grezap/nexus-cli`](https://github.com/grezap/nexus-cli) — operator surface; .NET 10 Native AOT, 22.75 MB win-x64 binary (under the 25 MB exit gate, 2.25 MB headroom). **`v0.5.0` tagged 2026-05-15 — Phase 0.F closed; all 5 master-plan verbs live**: `cluster-status` · `infrastructure {list, status, suspend, resume}` · `failover-test {consul-leader, nomad-leader, swarm-manager}` · `demo {list, run, record}` · **`kafka failover {east-to-west, west-to-east}`**. Live RTOs verified end-to-end: 1.55 s · 2.716 s · 21.59 s · 13.20 s · 13.57 s, all under their master-plan budgets.
 - Repos below are planned; links will be added as each ships:
   - `nexus-shared` · `nexus-infra-k8s` · `nexus-infra-vitess` · `nexus-infra-citus` (0.O/0.P sharding)

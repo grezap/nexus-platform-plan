@@ -110,6 +110,7 @@ VMnet10 third octet encodes cluster role so that IPs read as cluster identity:
 | 10.10.131+ | Swarm workers | .131–.133 | .131–.133 |
 | 10.10.14x–15x | **Lakehouse (`08-spark`, Phase 0.L)** — spark-master-1 `.140`; MinIO `.141`–`.144`; spark-worker-1/2 `.145`/`.146`; iceberg-rest `.147`/`.148`; iceberg-pg `.149`/`.150`; **catalog-DB VIP `.151`** (VRRP); JupyterHub `.152` (future); spark-master-2 `.153`; spark-worker-3 `.154`; ZooKeeper `.155`–`.157` | .140–.157 | .140–.157 (VMnet10 backplane; VIP `.151` is VMnet11-only) |
 | 10.10.160 | Windows workstations (`nexusdesk-dev`) — moved off `.150` (now iceberg-pg-2) when the lakehouse tier claimed the `.14x` decade | .160 | .160 |
+| 10.10.19x–20x | **Vitess (`07-vitess`, Phase 0.O, sealed 2026-06-03)** — etcd topo `vitess-etcd-1/2/3` `.190`–`.192`; control (vtctld + VTOrc) `vitess-control-1` `.193`; vtgate `vitess-vtgate-1/2` `.194`/`.195` (round-robin DNS `vtgate.nexus.lab`, MySQL `:15306`, no VIP per ADR-0031); shard `-80` tablets `vitess-shard1-tablet-1/2/3` `.196`–`.198`; shard `80-` tablets `vitess-shard2-tablet-1/2/3` `.199`–`.201` | .190–.201 | .190–.201 |
 
 Reserved on VMnet11: **`.1` = nexus-gateway**, **`.2`–`.9` = reserved for future edge appliances (pfSense standby, WireGuard bastion)**, **`.254` = host**.
 
@@ -247,6 +248,26 @@ sixth byte with fifth byte `01`. Primary MAC plan (`00:50:56:3F:00:XX`):
 The two VRRP VIPs (`grafana.nexus.lab .184` + `grafana-db.nexus.lab .185`) have no
 MAC — keepalived floats them between the respective MASTER/BACKUP nodes per
 ADR-0025. MAC high-water is now `BF`.
+
+### Vitess-tier MAC reservations (VMnet11 dhcp-host)
+
+The 12 Vitess nodes (Phase 0.O, tier `07-vitess`, sealed 2026-06-03; ADR-0041) get
+static-pinned VMnet11 IPs in the contiguous `:CB`–`:D6` MAC block, just past the
+MongoDB-sharded tier (Phase 0.N, `:C0`–`:CA`). Secondary NICs (VMnet10 backplane)
+use the same sixth byte with fifth byte `01`. Pre-apply MAC audit ALL CLEAR vs every
+foundation reservation file. Primary MAC plan (`00:50:56:3F:00:XX`):
+
+| Node | VMnet11 | Primary MAC `…:00:` | Node | VMnet11 | Primary MAC `…:00:` |
+|---|---|---|---|---|---|
+| vitess-etcd-1     | .190 | `CB` | vitess-shard1-tablet-1 | .196 | `D1` |
+| vitess-etcd-2     | .191 | `CC` | vitess-shard1-tablet-2 | .197 | `D2` |
+| vitess-etcd-3     | .192 | `CD` | vitess-shard1-tablet-3 | .198 | `D3` |
+| vitess-control-1  | .193 | `CE` | vitess-shard2-tablet-1 | .199 | `D4` |
+| vitess-vtgate-1   | .194 | `CF` | vitess-shard2-tablet-2 | .200 | `D5` |
+| vitess-vtgate-2   | .195 | `D0` | vitess-shard2-tablet-3 | .201 | `D6` |
+
+The vtgate front door is round-robin DNS `vtgate.nexus.lab` (`.194`/`.195`, MySQL
+`:15306`) with **no VIP** per ADR-0031. MAC high-water is now `D6`.
 
 ## Firewall posture
 

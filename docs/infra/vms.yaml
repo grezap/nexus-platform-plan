@@ -4,7 +4,7 @@
 
 metadata:
   updated: 2026-05-28
-  vm_count: 119         # built/cold-rebuild-proven through Phase 0.N (count of the built rows below; 0.N live-ratified + cold-rebuild-proven 2026-05-30, smoke 50/50): edge 1 + foundation 6 (dc-nexus + dc-nexus-2 + vault-1/2/3 + vault-transit) + swarm 6 + kafka 15 + oltp 37 (redis 6 + mongo 3 + percona 5 + postgres 8 + sqlserver 4 + mongo-sharded 11) + analytics 20 (clickhouse 9 + starrocks sn 6 + starrocks-sd 5) + lakehouse 16 + registry 4 + observability 14 (prom-1/2 + loki-1/2/3 + tempo-1/2/3 + grafana-1/2 + grafana-pg-1/2 + otel-collector-1/2). The other 5 rows in this file are NOT yet built: platform-tools prefect/unleash/marquez/backstage 4 (future 0.J/0.K) + windows-workstations nexusdesk-dev 1 (app-project dev host).
+  vm_count: 131         # built/cold-rebuild-proven through Phase 0.O (count of the built rows below; 0.O live-ratified + cold-rebuild-proven 2026-06-03, smoke 71/71): edge 1 + foundation 6 (dc-nexus + dc-nexus-2 + vault-1/2/3 + vault-transit) + swarm 6 + kafka 15 + oltp 37 (redis 6 + mongo 3 + percona 5 + postgres 8 + sqlserver 4 + mongo-sharded 11) + analytics 20 (clickhouse 9 + starrocks sn 6 + starrocks-sd 5) + vitess 12 (etcd 3 + control 1 + vtgate 2 + shard1 3 + shard2 3) + lakehouse 16 + registry 4 + observability 14 (prom-1/2 + loki-1/2/3 + tempo-1/2/3 + grafana-1/2 + grafana-pg-1/2 + otel-collector-1/2). The other 5 rows in this file are NOT yet built: platform-tools prefect/unleash/marquez/backstage 4 (future 0.J/0.K) + windows-workstations nexusdesk-dev 1 (app-project dev host).
   host: 10.0.70.101
   hypervisor: VMware Workstation Pro 17.5+
   plan_version: v0.1.5
@@ -349,8 +349,9 @@ clusters:
   vitess:
     purpose: Vitess-sharded MySQL/Percona cluster (Phase 0.O -- NEW repo nexus-infra-vitess, tier 07-vitess)
     phase: 0.O
-    # RESERVED at the 0.O design session (ADR-0041); NOT yet built -> NOT in metadata.vm_count
-    # until live-ratified. 12 VMs. MAC pool :CB-:D6 (primary) / :01:CB-:D6 (secondary) --
+    # BUILT -- SEALED 2026-06-03 (ADR-0041); live-ratified + cold-rebuild-proven
+    # (smoke-0.O.ps1 71/71 GREEN both times); counted in metadata.vm_count. 12 VMs.
+    # MAC pool :CB-:D6 (primary) / :01:CB-:D6 (secondary) --
     # pre-apply audit ALL CLEAR vs every foundation reservation file.
     architecture: |
       Vitess shards MySQL horizontally behind a MySQL-protocol query router.

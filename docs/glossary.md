@@ -166,6 +166,30 @@ A **document database**. Stores JSON-shaped records ("documents") with a flexibl
 A MongoDB cluster that partitions a collection's documents across multiple **shards** by a **shard key** (range or hashed), giving horizontal write/storage scale beyond one replica set. Three roles: a **shard** is a replica set holding a subset of the data (chunks); the **config server** is its own replica set holding cluster metadata (which chunk lives on which shard); **`mongos`** is a stateless query *router* — clients connect to it, it reads chunk locations from the config servers and routes each operation to the owning shard. Sharding (partitioning) and replication (per-shard RS) compose: each shard tolerates a node loss independently.
 *In NexusPlatform:* Phase 0.N — 3 config-server RS (`config`, port 27019) + 2 shard RSes (`shard-1`/`shard-2`, port 27018, 3 nodes each) + 2 `mongos` routers (port 27017, round-robin DNS `mongos.nexus.lab`). keyFile internal auth; clients auth as `nexus-sharded-admin` against the admin DB (mongos forbids the `local` DB that `__system` uses). Distinct from the 0.G.2 replica set — the RS is the *replication* showcase, the sharded cluster the *sharding* showcase ([ADR-0040](adr/ADR-0040-mongodb-sharded-cluster-separate-from-0g2-rs.md)).
 
+### vtgate
+Vitess's stateless **MySQL-protocol query router** — the client front door (`:15306`). Apps connect to it exactly as they would a single MySQL server; it reads the topology for shard/tablet locations and routes each query to the owning shard (fanning out + merging for cross-shard reads). No state of its own, so it scales horizontally and sits behind round-robin DNS with no VIP.
+*In NexusPlatform:* Phase 0.O — 2 vtgate routers (`vitess-vtgate-1/2` @ `.194/.195`, round-robin DNS `vtgate.nexus.lab`, MySQL listener `:15306`) front the `commerce` keyspace; the vtgate MySQL listener + every gRPC channel run Vault-PKI mTLS.
+
+### vttablet
+Vitess's **per-tablet sidecar** that fronts a single MySQL (Percona) instance. It serves queries from vtgate, registers the tablet in the topology (etcd), manages the local mysqld (via `mysqlctld`), and participates in VTOrc-driven reparenting (promotion/demotion). One vttablet+mysqld pair per tablet.
+*In NexusPlatform:* Phase 0.O — 6 tablets (2 shards × 3), each a vttablet + Percona Server 8.4 LTS mysqld pair; one initial PRIMARY + 2 REPLICA per shard.
+
+### vtctld
+Vitess's **cluster control / admin daemon** (gRPC + web UI `:15000`). Executes administrative operations — `ApplySchema`, `ApplyVSchema`, `PlannedReparentShard`, reshard workflows — against the topology and tablets; the `vtctldclient` CLI talks to it.
+*In NexusPlatform:* Phase 0.O — runs on `vitess-control-1` (@ `.193`) alongside VTOrc; mTLS on its gRPC channels.
+
+### VTOrc
+Vitess's **automated failover orchestrator** (one per cell). Continuously monitors tablet + replication health and **auto-reparents** a shard — promoting a healthy replica to PRIMARY — when the current PRIMARY dies. The relational-sharding analogue of MongoDB's RS auto-election or Patroni's PG leader election.
+*In NexusPlatform:* Phase 0.O — co-resident with vtctld on `vitess-control-1`; the smoke gate kills a shard PRIMARY and proves VTOrc re-elects a new one (~15s) with the cluster staying writable.
+
+### keyspace
+A Vitess **logical database**, horizontally partitioned into one or more **shards**. Tables in a keyspace are sharded according to its VSchema; an unsharded keyspace is a single shard.
+*In NexusPlatform:* Phase 0.O — keyspace `commerce`, split into 2 shards (`-80` / `80-`) on a hash vindex.
+
+### vindex
+A Vitess **"vindex" (Vitess index)**: the function that maps a table column (the **sharding key**) to a `keyspace_id`, which in turn determines the owning shard. A `hash` vindex spreads rows evenly across shards; other types (lookup, unicode) support secondary routing. The vindex is what lets vtgate route a keyed query to exactly one shard instead of fanning out.
+*In NexusPlatform:* Phase 0.O — a `hash` vindex on the `commerce` sharding key splits 100 inserted rows ~53/47 across shards `-80` and `80-` (proven in `smoke-0.O.ps1`).
+
 ### Redis Cluster
 **Sharded in-memory key-value store**. Sub-millisecond latency for caching, rate limiting, pub/sub. The cluster mode shards keys across multiple shards with replicas per shard.
 *In NexusPlatform:* 3 shards × 2 replicas. Powers the `localmind` RAG cache and `tenantcore` session store.

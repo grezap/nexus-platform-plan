@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 0.O Vitess-sharded MySQL tier SEALED (2026-06-03)
+
+- **New repo `nexus-infra-vitess` SEALED — `v0.1.0`.** The **relational (MySQL) horizontal-sharding** showcase, distinct from PXC/Galera *synchronous replication* (0.G.3). 12 VMs on tier `07-vitess`: 3 etcd topo (`vitess-etcd-1/2/3` @ `.190`-`.192`) + 1 control (`vitess-control-1` @ `.193`, vtctld + VTOrc) + 2 vtgate routers (`vitess-vtgate-1/2` @ `.194`/`.195`, round-robin DNS `vtgate.nexus.lab`, MySQL `:15306`, no VIP per ADR-0031) + shard `-80` (`vitess-shard1-tablet-1/2/3` @ `.196`-`.198`) + shard `80-` (`vitess-shard2-tablet-1/2/3` @ `.199`-`.201`). Engine = **Percona Server 8.4 LTS** tablets + **Vitess v24.0.1** (vtgate/vttablet/vtctld/VTOrc) + **etcd 3.5.16** topo. Keyspace `commerce`, 2 shards on a **hash vindex**. **Full Vault-PKI mTLS** on every gRPC channel + the mysqld wire + the vtgate MySQL listener. Live-ratified **and cold-rebuild-proven** (`smoke-0.O.ps1` **71/71 GREEN** both times); proven hash-vindex sharding (100 rows split 53/47 across both shards via one vtgate insert) + VTOrc auto-reparent-on-primary-kill (~15s).
+- **[ADR-0041](docs/adr/ADR-0041-vitess-sharded-mysql-cluster.md)** — Vitess-sharded MySQL cluster topology (12 VMs, 2 shards × 3 tablets, hash vindex, full mTLS); already in `docs/adr/index.md`.
+- **MASTER-PLAN.md** `0.O` row flipped to SEALED (topology + smoke 71/71 + fleet `119 → 131`); `I6` repo row marked SEALED `v0.1.0`; §5.3 fleet count `107 → 131`. **`docs/infra/vms.yaml`** — vitess cluster marked BUILT/SEALED; `vm_count: 131` (re-derived: 136 node rows − 5 unbuilt). **`docs/infra/network.md`** — `07-vitess` tier IP allocations (`.190`-`.201`) + the `:CB`-`:D6` MAC reservation sub-table (high-water `D6`). **`docs/glossary.md` §4** — 6 new entries: **vtgate**, **vttablet**, **vtctld**, **VTOrc**, **keyspace**, **vindex**. **`docs/demos/DEMO-21.md`** — System A persona demo (kill a shard primary → VTOrc auto-reparents); System B `demo-0.O-*` JSON demos (DEMO-24/25/26).
+
 ### Added — Phase 0.L COMPLETE 2026-05-26 — 3 repo releases tagged at close-out (0.L.6)
 
 Phase 0.L (lakehouse + registry + analytics extension) is fully closed. All 5 sub-phases (0.L.1 MinIO · 0.L.2 Iceberg/Nessie + PG HA · 0.L.3 Spark HA · 0.L.4 Harbor HA · 0.L.5 StarRocks shared-data) live-ratified + cold-rebuild-proven (smoke gates 41/41 + 28/28 + 28/28 + 41/41 + 69/69 GREEN). 3 repos tagged simultaneously at the 0.L.6 close-out:

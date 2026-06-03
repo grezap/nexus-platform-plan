@@ -12,7 +12,7 @@ cross-env operator order · §1.3 apply · §1.4 verify · §1.5 selective ops �
 §1.6 destroy · §3.1 cold-rebuild canon. This page is the cross-tier index;
 each row links to the canonical detail.
 
-## Inventory — what the lab has built so far (107 VMs cold-rebuild proven across 9 tiers, through Phase 0.I.5)
+## Inventory — what the lab has built so far (131 VMs cold-rebuild proven across 10 tiers, through Phase 0.O)
 
 | Tier | Repo | VMs | Phase |
 |---|---|---|---|
@@ -21,12 +21,13 @@ each row links to the canonical detail.
 | **01-foundation** (observability extension) | `nexus-infra-observability` (`envs/obs-prom`, `envs/obs-loki`, `envs/obs-tempo`, `envs/obs-grafana`, `envs/obs-otel`) | Prom HA `prom-1/2` (2) · Loki SSD `loki-1/2/3` (3) · Tempo `tempo-1/2/3` (3) · Grafana HA `grafana-1/2` + VRRP VIP `.184` (2) · Grafana PG HA `grafana-pg-1/2` + VRRP VIP `.185` (2) · OTel Collector `otel-collector-1/2` + RR DNS `otel.nexus.lab` (2) — 14 obs nodes + 2 VIPs | 0.I.1-0.I.5 |
 | **06-orchestration** | `nexus-infra-swarm-nomad` (`envs/swarm-nomad`) | `swarm-manager-1/2/3`, `swarm-worker-1/2/3` (6) | 0.E |
 | **03-kafka** | `nexus-infra-kafka` (`envs/kafka`) | `kafka-east-1/2/3`, `kafka-west-1/2/3`, `schema-registry-1/2`, `kafka-rest-1`, `kafka-connect-1/2`, `ksqldb-1/2`, `mm2-1/2` (15) | 0.H |
-| **05-oltp** | `nexus-infra-oltp` (per-cluster envs: `envs/oltp-redis`, `envs/oltp-mongo`, `envs/oltp-percona`, `envs/oltp-patroni`) | `redis-1..6` (6) · `mongo-1/2/3` (3) · `pxc-1/2/3` + `proxysql-1/2` (5) · `pg-primary` + `pg-replica-1/2` + `etcd-1/2/3` + `haproxy-pg-1/2` (8) — VRRP VIPs `.50` (proxysql) + `.60` (haproxy-pg). | 0.G.1-0.G.4 |
+| **05-oltp** | `nexus-infra-oltp` (per-cluster envs: `envs/oltp-redis`, `envs/oltp-mongo`, `envs/oltp-percona`, `envs/oltp-patroni`, `envs/oltp-sqlserver`, `envs/oltp-mongo-sharded`) | `redis-1..6` (6) · `mongo-1/2/3` (3) · `pxc-1/2/3` + `proxysql-1/2` (5) · `pg-primary` + `pg-replica-1/2` + `etcd-1/2/3` + `haproxy-pg-1/2` (8) · SQL FCI+AG `sql-fci-1/2` + `sql-ag-rep-1/2` (4, VIPs `.15`/`.16`/`.17`) · MongoDB sharded `mongo-cfg-1/2/3` + `shard{1,2}-1/2/3` + `mongos-1/2` (11) — VRRP VIPs `.50` (proxysql) + `.60` (haproxy-pg). | 0.G.1-0.G.4, 0.G.7, 0.N |
+| **07-vitess** | `nexus-infra-vitess` (`envs/vitess`) | etcd topo `vitess-etcd-1/2/3` (3) · control (vtctld + VTOrc) `vitess-control-1` (1) · vtgate `vitess-vtgate-1/2` (2, RR DNS `vtgate.nexus.lab`, MySQL `:15306`) · shard `-80` `vitess-shard1-tablet-1/2/3` (3) · shard `80-` `vitess-shard2-tablet-1/2/3` (3) — 12 nodes, no VIP (ADR-0031) | 0.O |
 | **04-analytics** | `nexus-infra-analytics` (`envs/analytics-clickhouse`, `envs/analytics-starrocks`, `envs/analytics-starrocks-sd`) | ClickHouse: `ch-keeper-1/2/3` + `ch-shard{1,2,3}-rep{1,2}` (9) · StarRocks sn: `sr-fe-{leader,follower-1,follower-2}` + `sr-be-1/2/3` (6) · StarRocks sd: `sr-sd-fe-1/2/3` + `sr-sd-cn-1/2` (5) | 0.G.5-0.G.6, 0.L.5 |
 | **08-spark** | `nexus-infra-lakehouse` (`envs/lakehouse-minio`, `envs/lakehouse-iceberg`, `envs/lakehouse-spark`) | MinIO `minio-1..4` (4) · Iceberg `iceberg-rest-1/2` + `iceberg-pg-1/2` + VIP `.151` (4) · Spark `spark-master-1/2` + `spark-worker-1/2/3` + `zookeeper-1/2/3` (8) | 0.L.1-0.L.3 |
 | **09-platform** | `nexus-infra-registry` (`envs/registry-harbor`) | Harbor app `registry-1/2` (2) · datastore `registry-pg-1/2` + VRRP VIP `registry-db .119` (2) | 0.L.4 |
 
-**Total: 108 VMs + 5 VRRP VIPs cold-rebuild proven (through Phase 0.M). All sealed tiers tagged on their repos; observability tagged `nexus-infra-observability v0.1.0`; foundation HA partner `dc-nexus-2` ratified + cold-rebuild-proven 2026-05-28 (ADR-0039, smoke-0.M 24/24). The remaining 0.N-0.P sharding tiers + future platform tools are not yet built.**
+**Total: 131 VMs + 5 VRRP VIPs cold-rebuild proven (through Phase 0.O), reconciling with `docs/infra/vms.yaml` `vm_count: 131`. All sealed tiers tagged on their repos; observability tagged `nexus-infra-observability v0.1.0`; foundation HA partner `dc-nexus-2` (0.M, ADR-0039) ratified + cold-rebuild-proven 2026-05-28 (smoke-0.M 24/24); MongoDB sharded cluster (0.N, ADR-0040) + Vitess-sharded MySQL (0.O, `nexus-infra-vitess v0.1.0`, ADR-0041, smoke-0.O 71/71) both live-ratified + cold-rebuild-proven. The remaining 0.P Citus sharding tier + future platform tools are not yet built.**
 
 ## Per-tier from-zero replay matrix
 
@@ -48,6 +49,7 @@ verification, and the selective-ops examples.
 | **The lakehouse tier** (MinIO distributed EC + Iceberg/Nessie REST + dedicated PG HA + Spark HA + ZooKeeper, mTLS) | [`nexus-infra-lakehouse/docs/handbook.md` §1 — Phase walkthrough (§1.1 MinIO · §1.7 Iceberg · §1.13 Spark)](https://github.com/grezap/nexus-infra-lakehouse/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** (sub-phases layer: Iceberg + Spark need MinIO up) | ~40-60 min (all 3) |
 | **The registry tier** (HA Harbor: 2 app nodes round-robin + dedicated PG/Redis HA + VRRP VIP; MinIO S3 blobs; Trivy + cosign; Vault OIDC) | [`nexus-infra-registry/docs/handbook.md` §1 — Phase walkthrough + §3.2 the 7-transient chronology](https://github.com/grezap/nexus-infra-registry/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** + **MinIO (0.L.1) alive** (the S3 blob backend) | ~18-25 min |
 | **The StarRocks shared-data cluster (0.L.5)** (3 FE BDB-JE quorum + 2 stateless Compute Nodes; `run_mode=shared_data`; internal cloud-native tables in a MinIO storage volume `s3://starrocks/`; dedicated `nexus-starrocks-app` MinIO service account + scoped `starrocks-tenant` policy; ADR-0037 amends ADR-0030) | [`nexus-infra-analytics/docs/handbook.md` §1.C — Phase 0.L.5 walkthrough](https://github.com/grezap/nexus-infra-analytics/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** + **MinIO (0.L.1) alive** (the shared-data storage backend) | ~20-30 min |
+| **The Vitess-sharded MySQL tier (0.O)** (3-node etcd topo + vtctld/VTOrc control + 2 vtgate routers (RR DNS `vtgate.nexus.lab`, MySQL `:15306`) + 2 shards × 3 Percona Server 8.4 tablets; keyspace `commerce`, hash vindex; Vitess v24.0.1; full Vault-PKI mTLS; ADR-0041) | [`nexus-infra-vitess/docs/handbook.md` §1 — Phase 0.O walkthrough](https://github.com/grezap/nexus-infra-vitess/blob/main/docs/handbook.md) | Foundation **alive** + security **alive** (env reads per-host AppRoles + `vitess-server` PKI role from security at plan time) | ~25-35 min |
 
 ## Selective ops index — "set up only X"
 
@@ -167,10 +169,27 @@ pwsh -File scripts\oltp.ps1 smoke -Phase 0.G.3        # ALL GREEN
 # with VRRP VIP .60 (mTLS); 8 VMs in one env:
 pwsh -File scripts\oltp.ps1 apply -Env oltp-patroni   # ~20-30 min
 pwsh -File scripts\oltp.ps1 smoke -Phase 0.G.4        # 152/152 ALL GREEN
+
+# 0.G.7 -- 2-node SQL Server FCI (shared iSCSI LUN) + 2 async AG replicas + AG Listener
+# VIP .17 (4 ws2025-desktop nodes; mTLS + GMSA + cert-auth endpoints):
+pwsh -File scripts\oltp.ps1 apply -Env oltp-sqlserver       # ~45-60 min
+pwsh -File scripts\oltp.ps1 smoke -Phase 0.G.7              # 56/56 ALL GREEN
+
+# 0.N -- 11-node MongoDB sharded cluster (3 config RS + 2x3 shard RSes + 2 mongos):
+pwsh -File scripts\oltp.ps1 apply -Env oltp-mongo-sharded   # ~20-30 min
+pwsh -File scripts\oltp.ps1 smoke -Phase 0.N               # 50/50 ALL GREEN
+cd ..
+
+# ─── TIER 7 — VITESS-SHARDED MYSQL (0.O, 12 VMs, one env; needs foundation + security) ─
+# Vitess v24.0.1 + Percona Server 8.4 LTS tablets + etcd 3.5.16 topo; full Vault-PKI
+# mTLS on every gRPC channel + the mysqld wire + the vtgate MySQL listener.
+cd nexus-infra-vitess
+pwsh -File scripts\vitess.ps1 apply -parallelism=3     # ~25-35 min (3 etcd + control + 2 vtgate + 2x3 tablets)
+pwsh -File scripts\vitess.ps1 smoke -Phase 0.O        # 71/71 ALL GREEN
 cd ..
 ```
 
-**Total wall-clock for a true cold rebuild of the whole 88-VM lab:** the dominant
+**Total wall-clock for a true cold rebuild of the whole 131-VM lab:** the dominant
 cost is the first-time Packer builds (one per-engine template per cluster across
 all tiers); subsequent rebuilds reuse the templates. Per the per-cluster +
 per-engine canon, independent envs can be applied in parallel from separate
