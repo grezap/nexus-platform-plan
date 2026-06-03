@@ -190,6 +190,30 @@ A Vitess **logical database**, horizontally partitioned into one or more **shard
 A Vitess **"vindex" (Vitess index)**: the function that maps a table column (the **sharding key**) to a `keyspace_id`, which in turn determines the owning shard. A `hash` vindex spreads rows evenly across shards; other types (lookup, unicode) support secondary routing. The vindex is what lets vtgate route a keyed query to exactly one shard instead of fanning out.
 *In NexusPlatform:* Phase 0.O — a `hash` vindex on the `commerce` sharding key splits 100 inserted rows ~53/47 across shards `-80` and `80-` (proven in `smoke-0.O.ps1`).
 
+### Citus
+A **PostgreSQL extension** (`shared_preload_libraries='citus'`) that turns a set of PostgreSQL servers into a distributed database — the PG-native analogue of Vitess for MySQL. Unlike Vitess (external query router + topology server), Citus is "just PostgreSQL": clients speak the normal PG wire protocol to the coordinator. Distribution metadata lives in the coordinator's `pg_dist_*` catalog; HA is orthogonal and supplied by Patroni streaming-replication.
+*In NexusPlatform:* Phase 0.P — PostgreSQL 17 + Citus 14.x, the relational-PG-sharding showcase (sibling of 0.O Vitess). 9 VMs, full Patroni HA + Vault-PKI mTLS.
+
+### coordinator (Citus)
+The Citus node that holds the **distributed catalog** (`pg_dist_node` / `pg_dist_shard` / `pg_dist_partition`) and is the client entry point. It **routes** single-shard queries to the owning worker and **fans out + merges** cross-shard aggregates. It stores no table data itself (only the metadata + reference-table copies). A coordinator outage makes the whole distributed DB unqueryable, so it is the highest-value HA target.
+*In NexusPlatform:* Phase 0.P — a 2-node Patroni pair (`citus-coord-1/2`) behind VIP `coord.citus.nexus.lab` (`.211`); clients connect here on `:5432`.
+
+### worker (Citus)
+A Citus node that **holds the shards** of every distributed table. The coordinator dials workers (over verify-full mTLS) to push down query fragments. Workers are registered in `pg_dist_node` via `citus_add_node(...)`.
+*In NexusPlatform:* Phase 0.P — 2 worker node-groups (`citus-worker1`/`citus-worker2`), each a 2-node Patroni pair behind a VIP (`.212`/`.213`); registered **by VIP** so a worker failover needs no `pg_dist_node` rewrite.
+
+### distributed table
+A table whose rows are **hash-partitioned into shards spread across the workers** (`create_distributed_table('t','dist_col')`). Queries filtered on the distribution column route to a single shard; aggregates fan out and merge at the coordinator. The Citus equivalent of a Vitess sharded table.
+*In NexusPlatform:* Phase 0.P — `events` (distributed on `tenant_id`, 32 shards across both worker groups); `smoke-0.P.ps1` proves the shards span both workers + a `count(*)` cross-shard aggregate returns the full seeded set.
+
+### reference table
+A small table **fully replicated to every node** (workers + coordinator) via `create_reference_table('t')`, so joins against distributed tables resolve locally with no reshuffle. The Citus analogue of a "broadcast"/dimension table.
+*In NexusPlatform:* Phase 0.P — `tenants` is a reference table joined against the distributed `events`.
+
+### colocation
+Two distributed tables sharded on the **same key with the same shard count** are *colocated* — their matching shards live on the same worker, so joins on the distribution key are **worker-local** (no cross-node repartition). Created with `colocate_with => '<table>'`.
+*In NexusPlatform:* Phase 0.P — `event_tags` is colocated with `events` on `tenant_id`; the colocated join executes worker-locally (proven in `smoke-0.P.ps1`).
+
 ### Redis Cluster
 **Sharded in-memory key-value store**. Sub-millisecond latency for caching, rate limiting, pub/sub. The cluster mode shards keys across multiple shards with replicas per shard.
 *In NexusPlatform:* 3 shards × 2 replicas. Powers the `localmind` RAG cache and `tenantcore` session store.

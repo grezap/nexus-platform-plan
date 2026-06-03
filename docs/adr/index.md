@@ -49,6 +49,7 @@ Architecture Decision Records across the portfolio. Shared ADRs (0001–0010) ar
 | 0039 | [Phase 0.M: Foundation HA — 2nd AD DC (`dc-nexus-2`) via `Install-ADDSDomainController` (closes single-DC SPOF)](./ADR-0039-foundation-2nd-ad-dc-replica.md) | accepted | 2026-05-28 |
 | 0040 | [Phase 0.N: MongoDB sharded cluster — separate from the 0.G.2 3-node RS (3 config + 2×3 shards + 2 mongos; document-store sharding showcase)](./ADR-0040-mongodb-sharded-cluster-separate-from-0g2-rs.md) | accepted | 2026-05-28 |
 | 0041 | [Phase 0.O: Vitess-sharded MySQL (Percona Server) — new repo `nexus-infra-vitess` (3 etcd + vtctld/VTOrc + 2 vtgate + 2×3 tablets; relational-MySQL sharding showcase, full mTLS)](./ADR-0041-vitess-sharded-mysql-cluster.md) | accepted | 2026-05-30 |
+| 0042 | [Phase 0.P: Citus-sharded PostgreSQL with full Patroni HA — new repo `nexus-infra-citus` (3 etcd DCS + coordinator Patroni pair + 2×2 worker Patroni groups + 3 keepalived VRRP VIPs; PG-native sharding showcase, PG 17 + Citus 14.x, full mTLS)](./ADR-0042-citus-sharded-postgresql-cluster.md) | accepted | 2026-06-03 |
 | 0144 | [Windows licensing posture — MSDN primary, Evaluation fallback](./ADR-0144-windows-licensing.md) | accepted | 2026-04-22 |
 
 ## Per-project ADRs

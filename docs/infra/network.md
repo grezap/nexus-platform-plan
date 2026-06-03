@@ -111,6 +111,7 @@ VMnet10 third octet encodes cluster role so that IPs read as cluster identity:
 | 10.10.14x–15x | **Lakehouse (`08-spark`, Phase 0.L)** — spark-master-1 `.140`; MinIO `.141`–`.144`; spark-worker-1/2 `.145`/`.146`; iceberg-rest `.147`/`.148`; iceberg-pg `.149`/`.150`; **catalog-DB VIP `.151`** (VRRP); JupyterHub `.152` (future); spark-master-2 `.153`; spark-worker-3 `.154`; ZooKeeper `.155`–`.157` | .140–.157 | .140–.157 (VMnet10 backplane; VIP `.151` is VMnet11-only) |
 | 10.10.160 | Windows workstations (`nexusdesk-dev`) — moved off `.150` (now iceberg-pg-2) when the lakehouse tier claimed the `.14x` decade | .160 | .160 |
 | 10.10.19x–20x | **Vitess (`07-vitess`, Phase 0.O, sealed 2026-06-03)** — etcd topo `vitess-etcd-1/2/3` `.190`–`.192`; control (vtctld + VTOrc) `vitess-control-1` `.193`; vtgate `vitess-vtgate-1/2` `.194`/`.195` (round-robin DNS `vtgate.nexus.lab`, MySQL `:15306`, no VIP per ADR-0031); shard `-80` tablets `vitess-shard1-tablet-1/2/3` `.196`–`.198`; shard `80-` tablets `vitess-shard2-tablet-1/2/3` `.199`–`.201` | .190–.201 | .190–.201 |
+| 10.10.20x–21x | **Citus (`08-citus`, Phase 0.P, sealed 2026-06-03)** — etcd DCS `citus-etcd-1/2/3` `.202`–`.204`; coordinator Patroni pair `citus-coord-1/2` `.205`/`.206` (VIP `coord.citus.nexus.lab` `.211`); worker-1 Patroni pair `citus-worker1-1/2` `.207`/`.208` (VIP `worker1.citus.nexus.lab` `.212`); worker-2 Patroni pair `citus-worker2-1/2` `.209`/`.210` (VIP `worker2.citus.nexus.lab` `.213`); PG `:5432` + Patroni REST `:8008` | .202–.213 | .202–.210 (VMnet10 backplane; the 3 VIPs `.211`–`.213` are VMnet11-only) |
 
 Reserved on VMnet11: **`.1` = nexus-gateway**, **`.2`–`.9` = reserved for future edge appliances (pfSense standby, WireGuard bastion)**, **`.254` = host**.
 
@@ -123,6 +124,9 @@ Reserved on VMnet11: **`.1` = nexus-gateway**, **`.2`–`.9` = reserved for futu
 | `192.168.70.15` | WSFC-managed (no priority; cluster-owned) | OLTP — WSFC cluster management IP for `sql-fci-cluster` (Phase 0.G.7) | NOT a SQL endpoint; `Get-Cluster`/`Get-ClusterNode` ops from anywhere on VMnet11 |
 | `192.168.70.16` | WSFC role `SQL Server (MSSQLSERVER)` (migrates between sql-fci-1/2) | OLTP — SQL Server FCI virtual server `sqlfci` (Phase 0.G.7); SQL clients targeting the FCI directly | client connection string `sqlfci.nexus.lab,1433` or `192.168.70.16,1433`; cert IP-SAN includes .16 (the FCI virtual name `sqlfci` is distinct from the WSFC CNO `sql-fci-cluster` at .15) |
 | `192.168.70.17` | WSFC role `sql-ag-listener` (migrates with AG primary) | OLTP — AG Listener (Phase 0.G.7; the LB-tier HA primitive per ADR-0025) | client connection string `sql-ag-listener.nexus.lab,1433` or `192.168.70.17,1433`; cert IP-SAN includes .17 |
+| `192.168.70.211` | `citus-coord-1` · `citus-coord-2` (whichever is the Patroni **leader**) | Citus (Phase 0.P) — coordinator client endpoint `coord.citus.nexus.lab` (PG :5432) | unicast VRRP; the `vrrp_script` probes Patroni REST `/leader` (200 only on leader) so the VIP **follows the leader** (no static MASTER); client `postgresql://citus_app@coord.citus.nexus.lab:5432/citus` (mTLS, client cert required) |
+| `192.168.70.212` | `citus-worker1-1` · `citus-worker1-2` (Patroni leader) | Citus (Phase 0.P) — worker-group-1 endpoint `worker1.citus.nexus.lab` (PG :5432) | unicast VRRP, leader-following; registered in `pg_dist_node` **by VIP** so a worker failover needs no metadata rewrite |
+| `192.168.70.213` | `citus-worker2-1` · `citus-worker2-2` (Patroni leader) | Citus (Phase 0.P) — worker-group-2 endpoint `worker2.citus.nexus.lab` (PG :5432) | unicast VRRP, leader-following; registered in `pg_dist_node` by VIP |
 
 The VIPs are not DHCP reservations:
 - The keepalived VIPs (.50, .60) float between Linux LB pairs via unicast VRRP.
@@ -267,7 +271,27 @@ foundation reservation file. Primary MAC plan (`00:50:56:3F:00:XX`):
 | vitess-vtgate-2   | .195 | `D0` | vitess-shard2-tablet-3 | .201 | `D6` |
 
 The vtgate front door is round-robin DNS `vtgate.nexus.lab` (`.194`/`.195`, MySQL
-`:15306`) with **no VIP** per ADR-0031. MAC high-water is now `D6`.
+`:15306`) with **no VIP** per ADR-0031. MAC high-water after Vitess is `D6`.
+
+### Citus-tier MAC reservations (VMnet11 dhcp-host)
+
+The 9 Citus nodes (Phase 0.P, tier `08-citus`, sealed 2026-06-03; ADR-0042) get
+static-pinned VMnet11 IPs in the contiguous `:D7`–`:DF` MAC block, just past the
+Vitess tier (`:CB`–`:D6`). Secondary NICs (VMnet10 backplane) use the same sixth
+byte with fifth byte `01`. Pre-apply MAC audit ALL CLEAR vs every foundation
+reservation file. Primary MAC plan (`00:50:56:3F:00:XX`):
+
+| Node | VMnet11 | Primary MAC `…:00:` | Node | VMnet11 | Primary MAC `…:00:` |
+|---|---|---|---|---|---|
+| citus-etcd-1   | .202 | `D7` | citus-worker1-1 | .207 | `DC` |
+| citus-etcd-2   | .203 | `D8` | citus-worker1-2 | .208 | `DD` |
+| citus-etcd-3   | .204 | `D9` | citus-worker2-1 | .209 | `DE` |
+| citus-coord-1  | .205 | `DA` | citus-worker2-2 | .210 | `DF` |
+| citus-coord-2  | .206 | `DB` |  |  |  |
+
+The 3 VRRP VIPs (`coord`/`worker1`/`worker2.citus.nexus.lab` → `.211`/`.212`/`.213`)
+are keepalived-floated (leader-following), **not** DHCP reservations — they get DNS
+host-records, no MAC. MAC high-water is now `DF`.
 
 ## Firewall posture
 
