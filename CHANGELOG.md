@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — nexus-cli v0.6.3 PatroniAdapter live (Phase 0.G.4, 2026-06-11)
+
+- **`nexus-cli` v0.6.3** — the **PostgreSQL Patroni HA adapter** (3rd password-auth, 1st single-leader
+  streaming-replication engine) live-verified end-to-end against the running `postgres` cluster (scope
+  `nexus-pg`: 3 PG + 3 etcd + 2 HAProxy, VIP `.60`). All data-tier verbs green incl. `failover`
+  (`patronictl switchover`, RTO≈4.6s at the VIP) + `cert-rotate` (8 nodes) + `backup` (`pg_dump` →
+  operator-owned verify DB). AOT 24.18 MB / 30 MB; **4 of 11 adapters live**. Reuses the ADR-0011
+  Vault-KV operator-credential model (`nexus-cluster-admin`, password in Vault KV) verbatim. Infra
+  overlays added: `nexus-infra-vmware` security creds-seed v2 (+operator-password) + Patroni
+  agent-policy v3; `nexus-infra-oltp` `role-overlay-patroni-operator-user.tf` + the patroni.yml `ctl:`
+  block (the fix for the `patronictl switchover` 403 client-cert gap). No fleet/topology change
+  (`vm_count` unchanged) — the cluster already exists. Detail in `nexus-cli` ADR-0013 +
+  `docs/verification/0.G.4-postgres.md`.
+
 ### Added — Phase 0.P Citus-sharded PostgreSQL tier SEALED (2026-06-03)
 
 - **New repo `nexus-infra-citus` SEALED — `v0.1.0`.** The **relational (PostgreSQL) horizontal-sharding** showcase with **full Patroni HA**, distinct from Patroni *streaming replication* (0.G.4). 9 VMs + 3 VRRP VIPs on tier `08-citus`: 3 etcd DCS (`citus-etcd-1/2/3` @ `.202`-`.204`) + coordinator Patroni pair (`citus-coord-1/2` @ `.205`/`.206`, VIP `coord.citus.nexus.lab` `.211`) + 2 worker Patroni pairs (`citus-worker1-1/2` @ `.207`/`.208` VIP `.212`; `citus-worker2-1/2` @ `.209`/`.210` VIP `.213`). Engine = **PostgreSQL 17 + Citus 14.x** (`shared_preload_libraries='citus'`). Every node-group is a 2-node Patroni cluster over the shared etcd DCS, each fronted by a **keepalived VRRP VIP that follows the Patroni leader** (the `vrrp_script` probes Patroni REST `/leader`); workers registered in `pg_dist_node` **by VIP** so a failover needs no metadata rewrite. **Full Vault-PKI mTLS** on the PG wire + etcd peer/client + Patroni REST (`clientcert=verify-ca`). Live-ratified **and cold-rebuild-proven** (`smoke-0.P.ps1` **69/69 GREEN** both times incl worker-Patroni-failover with the VIP following the new leader). Distributed `events` table (32 shards) across both worker groups + reference (`tenants`) + colocated (`event_tags`) tables proven.
