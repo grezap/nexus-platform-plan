@@ -70,6 +70,14 @@ Microsoft's enterprise **directory service**. Stores user accounts, computer acc
 **LDAP** (Lightweight Directory Access Protocol) is the wire protocol used to query and modify directory services like AD. **LDAPS** is LDAP over TLS — the encrypted form. Plain LDAP transmits credentials in cleartext; modern Windows defaults reject plain-LDAP simple binds, so LDAPS is the practical default.
 *In NexusPlatform:* every connection from Vault to AD uses LDAPS on port 636, with the server cert issued by Vault's own internal PKI.
 
+### FSMO roles (Flexible Single Master Operation)
+AD is multi-master — most changes can be made on any DC and replicate out — but five operations must be performed by a single role-holding DC to avoid conflicts: **Schema Master** + **Domain Naming Master** (forest-wide) and **PDC Emulator** + **RID Master** + **Infrastructure Master** (per-domain). A healthy forest has all 5 roles seized + reachable.
+*In NexusPlatform:* a single-domain forest `nexus.lab` holds all 5 roles on `dc-nexus`; the `FoundationAdAdapter` `health` verb enumerates all 5 (and proves them reachable) as one of its checks.
+
+### KDS root key
+The forest-wide **Key Distribution Service** root key from which GMSA passwords are derived. Must exist before any GMSA can be created or retrieved.
+*In NexusPlatform:* added once at Phase 0.D.5 (via RDP on Server 2025 — broken over SSH, per memory); the `FoundationAdAdapter` `health` verb proves it present via the AD object.
+
 ### HashiCorp Vault
 A **secrets manager + cryptographic services platform**. Solves the problem "where do credentials, certificates, and encryption keys live, and how do humans + machines get them safely?" Stores arbitrary key-value secrets, can issue and rotate database/AD/cloud credentials on demand, runs as its own internal certificate authority, and exposes encryption-as-a-service over HTTP. Highly available via the Raft consensus algorithm.
 *In NexusPlatform:* a 3-node cluster (`vault-1/2/3`) is the source of truth for every secret in the lab. A 4th single-node companion (`vault-transit`) auto-unseals the main cluster on reboot so operators don't have to hand-enter recovery keys after every power cycle.
@@ -82,6 +90,18 @@ Sub-features actively used in the lab:
 - **Transit secrets engine** — Encryption-as-a-service. Apps send plaintext, Vault returns ciphertext (or vice versa) without ever exposing the key. We additionally use it as the unseal key for the main cluster.
 - **LDAP secrets engine** — Vault rotates passwords for AD service accounts on a schedule. Apps fetch the current password from Vault each time instead of storing it.
 - **Vault Agent** — Sidecar process that authenticates to Vault and writes rendered secrets to disk for consumer apps. Refreshes them automatically before they expire so apps never see stale credentials.
+
+### Transit auto-unseal
+On start, a Raft Vault node is **sealed** — its data is encrypted and it can't serve until the unseal key is supplied. **Auto-unseal** delegates that step to another Vault's Transit engine: the node asks the transit Vault to decrypt its sealed root key, so no human types unseal shards on every reboot. The transit Vault itself still uses classic Shamir key shares.
+*In NexusPlatform:* `vault-1/2/3` (the HA cluster) auto-unseal against `vault-transit`; `vault-transit` is the Shamir-seal custodian at the bottom of the chain. A host reboot can race the two (`vault-transit` not yet up when the cluster boots) — see *recover-ha*.
+
+### Raft snapshot
+A consistent point-in-time backup of a Raft-backed Vault's entire data store, taken with `vault operator raft snapshot save`. Restoring it overwrites live state, so it's a backup primitive to guard, not run casually against a trust root.
+*In NexusPlatform:* the nexus-cli `VaultAdapter` `backup` verb takes a raft snapshot + non-destructively inspects its `meta.json` (gzip/tar); restore is deliberately refused on the live trust root.
+
+### recover-ha (boot-race recovery)
+A bespoke nexus-cli verb (a new `IRecoverableCluster` capability) for the foundation Vault: the declarative fix for the post-reboot seal race — **unseal `vault-transit` from its Shamir key file → restart `vault-1/2/3` → poll until unsealed**. It is the *only* exposed unseal path in the CLI.
+*In NexusPlatform:* shipped with `VaultAdapter` (`v0.8.1`); codifies the manual `recover-vault-ha.ps1` runbook into a single operator verb.
 
 ### GMSA — Group Managed Service Account (Microsoft)
 A special AD account whose password is generated and rotated automatically by AD itself. Only authorized computers/groups can retrieve the current password. Solves the perennial "this Windows service runs as a domain account, but who manages the password?" problem.
