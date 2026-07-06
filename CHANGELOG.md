@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — nexus-cli completion batch 3: day-2 verb demos + playbooks (2026-07-06)
+
+- **System A `docs/demos/DEMO-28.md`** — an SRE/DevOps **day-2 capacity-ops tour** covering the three
+  batch-3 verbs closed inside `nexus-cli` (toward v0.8.7): `scale-up` (vertical CPU/RAM/disk resize via
+  `VmrunVmResizer` — the whole verb was a skeleton before), its **cluster-safety gate** (refuses the
+  write-primary/KRaft controller-leader unless `--force-primary`; shown on kafka-east), and the **guarded
+  Swarm `backup restore`** (real `consul`/`nomad snapshot restore` behind `--confirm-destructive`).
+  Highlights the **honest deb13 root-not-last disk warning** (the vmdk grows but the FS is left alone and
+  reported truthfully — no false success). Live-verified 2026-07-05/06 (redis-1, kafka-east, swarm).
+- **System B** (`nexus-cli/docs/demos/`) — new `DEMO-160-scale-up-disk-deb13`, `DEMO-161-kafka-resize-gate`,
+  `DEMO-162-swarm-restore-confirm-destructive`; de-stubbed `DEMO-17-redis-scale-up` (now the real cpu/ram
+  round-trip) + `demo-0.6.7-kafka-east-scale-up`; the swarm `backup restore` guard reflected in
+  `DEMO-118`. Handbook `nexus-cli/docs/handbook.md` gained the §3.5 step-by-step playbooks + an updated
+  §1 `scale-up` reference. No fleet/topology change (`vm_count` unchanged — adapter/CLI + docs only).
+
 ### Added — nexus-cli v0.6.3 PatroniAdapter live (Phase 0.G.4, 2026-06-11)
 
 - **`nexus-cli` v0.6.3** — the **PostgreSQL Patroni HA adapter** (3rd password-auth, 1st single-leader
