@@ -191,7 +191,7 @@ pwsh -File scripts\vitess.ps1 smoke -Phase 0.O        # 71/71 ALL GREEN
 cd ..
 ```
 
-**Total wall-clock for a true cold rebuild of the whole 131-VM lab:** the dominant
+**Total wall-clock for a true cold rebuild of the whole 140-VM lab:** the dominant
 cost is the first-time Packer builds (one per-engine template per cluster across
 all tiers); subsequent rebuilds reuse the templates. Per the per-cluster +
 per-engine canon, independent envs can be applied in parallel from separate

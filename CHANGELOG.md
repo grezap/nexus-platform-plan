@@ -6,6 +6,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — documentation currency sweep (2026-07-07)
+
+- **Fleet count corrected to 140 VMs / Phase 0.P** across the canon and every repo README (the stale
+  "88 VMs built through Phase 0.L.4" boilerplate is now `140 VMs built through Phase 0.P`): `README.md`,
+  `docs/glossary.md`, `docs/infra/host-setup.md`, `docs/infra/licensing.md`, `docs/setup-guides.md`
+  (`131-VM` → `140-VM`), and the sibling infra/cli READMEs.
+- **Demos catalog extended** — `docs/demos/README.md` now catalogs **DEMO-18..28** (the realized infra
+  failure-mode + `nexus-cli` operator tours) alongside the planned DEMO-01..17; added an Operator/SRE
+  Live Tour; `README.md`/`MASTER-PLAN.md` (E30) demo count 17 → 28.
+- **README Status + Roadmap refreshed** — Phase 0 infrastructure is COMPLETE (was "~85% / Next 0.P");
+  `nexus-cli` advanced from the stale `v0.5.0` to **`v0.8.7`** (full-fleet adapter coverage + completion
+  backlog); removed a duplicated 0.P roadmap line; AOT gate `≤25 MB` → `≤30 MB`.
+- **MASTER-PLAN** gained a nexus-cli completion-backlog note (v0.8.6/v0.8.7) + a CA-rollover-complete
+  (2026-07-04/05) marker.
+- **network.md** §DNS now records that a replica DC (`dc-nexus-2`) MUST use **static DNS** (partner +
+  self) — the 2026-07-06 fix for AD replication error 8524 (baked into the foundation terraform).
+
 ### Added — nexus-cli completion batch 3: day-2 verb demos + playbooks (2026-07-06)
 
 - **System A `docs/demos/DEMO-28.md`** — an SRE/DevOps **day-2 capacity-ops tour** covering the three

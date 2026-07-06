@@ -4,7 +4,7 @@
 
 This repository is the single source of truth that links the **14 Volumes of design docs**
 (`Vol00-Master-Blueprint` through `Vol13-Portfolio-Presentation`, plus the newly introduced
-`Vol14-Lakehouse-Core`) to **executable work** across 14 application projects, 9 built
+`Vol14-Lakehouse-Core`) to **executable work** across 14 application projects, 10 built
 infrastructure repositories, ~75 ADRs, ~150 database tables, and 140 VMs (built/cold-rebuild-proven through Phase 0.P).
 
 It contains no application code. Every other repo in the portfolio references this one.
@@ -25,7 +25,7 @@ It contains no application code. Every other repo in the portfolio references th
 - **14 application projects** (Clean Arch / Vertical Slice / Modular Monolith / Microservices)
 - **10 built infrastructure repos** (vmware, swarm-nomad, kafka, oltp, analytics, lakehouse, registry, observability, vitess, citus) + planned (k8s, shared NuGets)
 - **30 enhancements** (E1–E30) layered on top of the Volume docs to reach enterprise caliber
-- **17 guided demo scenarios** (DEMO-01 → DEMO-17, incl. the analytics/lakehouse/registry infra tours), auto-recorded via Playwright + VHS
+- **28 guided demo scenarios** (DEMO-01 → DEMO-17 planned application/infra scenarios + DEMO-18 → DEMO-28 realized infra failure-mode + `nexus-cli` operator tours, live-verified), auto-recorded via Playwright + VHS
 - **Four skill dimensions** every project demonstrates: .NET engineering & architecture, advanced SQL & analytics, Python, DevOps literacy
 - **Three deployment tiers**: VMware Workstation Pro (Tier 1) → Docker Swarm + Nomad (Tier 2) → Kubernetes manifests (Tier 3)
 - **Target: 72 weeks** (14 infra + 58 application), solo cadence
@@ -44,7 +44,9 @@ Changes to canon (network, enhancements, gates) land here first, then propagate 
 
 ## Status
 
-- **Phase 0 — Infrastructure** *(in flight, ~85% complete)*. All five core infra repos are live and cold-rebuildable; the operator CLI is at `v0.5.0` (**all 5 master-plan verbs live, Phase 0.F closed**); the Kafka ecosystem tier is tagged `v0.1.0`; the **OLTP tier is SEALED 5/5** — Redis + MongoDB + Percona/ProxySQL + Patroni/etcd/HAProxy + **SQL Server FCI + Always On AG** (live-ratified 2026-05-22, `smoke-0.G.7.ps1` ALL GREEN 56/56).
+- **Phase 0 — Infrastructure: COMPLETE** — all 10 infra repos live + cold-rebuild-proven; **140 VMs** built through Phase 0.P (foundation → orchestration → Kafka → OLTP 6/6 → analytics → lakehouse → registry → observability → Vitess + Citus sharding). The platform-wide **CA rollover is COMPLETE (2026-07-04/05)** — every tier re-issued to the new Vault PKI root. The operator CLI **`nexus-cli` is at `v0.8.7`**: full-fleet `IClusterAdapter` coverage (all 13 data/sharded families + all 5 non-data tiers) reached at v0.8.5, then the **completion backlog** closed the remaining in-CLI gaps (v0.8.6 batch 1 + v0.8.7 batches 2-3: `scale-up`/`VmrunVmResizer`, swarm guarded `backup restore --confirm-destructive`, kafka controller-leader resize-gate, FoundationAD `backup take`/FSMO `failover-test`). Next: finish the last 4 CLI cert-rotate gaps, then **Phase 1 applications**.
+- *(Historical phase-closure detail follows — each bullet records a sealed sub-phase.)*
+- **Phase 0 — Infrastructure** *(historical: was in flight, ~85% complete)*. All five core infra repos are live and cold-rebuildable; the operator CLI is at `v0.5.0` (**all 5 master-plan verbs live, Phase 0.F closed**); the Kafka ecosystem tier is tagged `v0.1.0`; the **OLTP tier is SEALED 5/5** — Redis + MongoDB + Percona/ProxySQL + Patroni/etcd/HAProxy + **SQL Server FCI + Always On AG** (live-ratified 2026-05-22, `smoke-0.G.7.ps1` ALL GREEN 56/56).
 - Phases closed: **0.B / 0.C / 0.D / 0.E / 0.F / 0.H** + **Phase 0.G.1-0.G.3 + 0.G.3.5** (OLTP first 3 clusters cold-rebuild proven). Phase 0.D foundation tier (Vault HA + PKI + LDAPS + Transit auto-unseal + GMSA scaffold + Vault Agents) ✅; Phase 0.E orchestration tier (3+3 Swarm + Nomad + Consul + Portainer CE, mTLS end-to-end) ✅ — tagged `v0.2.0`; Phase 0.H Kafka ecosystem tier ✅ — tagged `v0.1.0`; **Phase 0.F operator CLI ✅ tagged `v0.5.0`**; **Phase 0.G.1-0.G.3 + 0.G.3.5 ✅ all cold-rebuild proven 2026-05-18 via per-cluster envs + per-engine templates** (per the architectural canon born from 0.G.3's 16-transient stall).
 - **Phase 0.G.4 (Patroni PG HA + etcd + HAProxy HA pair) ✅ CLOSED 2026-05-19**, **8 VMs** (3 patroni + 3 etcd + **2 HAProxy** with VRRP VIP `.60`, mirroring the 0.G.3 proxysql-1/2 pattern — no SPOF on the LB tier): smoke gate **152/152 ALL GREEN** end-to-end. Ratification surfaced 18 transients (PG-17 PGDG t64-bookworm fallback · patronictl 4 CLI shape · tmpfs /tmp limit on small VMs · dnsmasq nexus.local vs nexus.lab domain · etcdctl JSON leader-id field · Patroni 4 password_file unsupported in restapi.auth · Patroni 4 ignores bootstrap.users · HAProxy needs CAP_SYS_CHROOT + `default-server check` keyword · PS quote/scope traps in smoke · etc) — all permanently fixed in source (handbook §3.4 18-row chronology table).
 - **Phase 0.G.7 (SQL Server FCI + Always On AG) ✅ LIVE-RATIFIED 2026-05-22**, **4 ws2025-desktop nodes** (2-node FCI `sqlfci` @ `.70.16` sharing an iSCSI LUN from nexus-gateway + 2 async AG replicas; AG Listener `sql-ag-listener` @ `.70.17`): `smoke-0.G.7.ps1` **56/56 ALL GREEN**. First Windows-fleet data cluster + first real GMSA consumer + first iSCSI shim. 40+ ratification transients fixed in source (handbook §3.5b + §3.5c). **OLTP tier SEALED (5/5).**
@@ -55,9 +57,9 @@ Changes to canon (network, enhancements, gates) land here first, then propagate 
   - `grezap/nexus-infra-analytics` **`v0.2.0`** — 0.L.5 StarRocks shared-data SEALED (3 FE BDB-JE + 2 stateless Compute Nodes, MinIO storage volume `s3://starrocks/`, dedicated `nexus-starrocks-app` identity + scoped `starrocks-tenant` policy, `smoke-0.L.5.ps1` 69/69 GREEN with CN-loss chaos default-on; ADR-0037)
 - **Phase 0.P (nexus-infra-citus — Citus-sharded PostgreSQL, full Patroni HA) ✅ SEALED 2026-06-03** — `grezap/nexus-infra-citus` **`v0.1.0`**, **9 VMs + 3 VRRP VIPs on tier `08-citus`** (3 etcd DCS + coordinator Patroni pair + 2 worker Patroni pairs): **PostgreSQL 17 + Citus 14.x**, a distributed `events` table (32 shards) across both worker groups + reference + colocated tables, every node-group a 2-node Patroni cluster over the shared etcd DCS, each fronted by a **keepalived VRRP VIP that follows the Patroni leader** (workers registered in `pg_dist_node` by VIP), full Vault-PKI mTLS on the PG wire + etcd + Patroni REST (`clientcert=verify-ca`). Live-ratified **and cold-rebuild-proven** (`smoke-0.P.ps1` **69/69 GREEN** both times incl worker-Patroni-failover with the VIP following the new leader); ADR-0042. Adds the **relational (PostgreSQL) sharding** showcase that Patroni *streaming replication* (0.G.4) doesn't provide.
 - **Phase 0.O (nexus-infra-vitess — Vitess-sharded MySQL) ✅ SEALED 2026-06-03** — `grezap/nexus-infra-vitess` **`v0.1.0`**, **12 VMs on tier `07-vitess`** (3 etcd topo + vtctld/VTOrc control + 2 vtgate routers + 2 shards × 3 Percona tablets): keyspace `commerce`, 2 shards (`-80`/`80-`) on a **hash vindex**, **Vitess v24.0.1** + **Percona Server 8.4 LTS** + **etcd 3.5.16**, full Vault-PKI mTLS on every gRPC channel + the mysqld wire + the vtgate MySQL listener. Live-ratified **and cold-rebuild-proven** (`smoke-0.O.ps1` **71/71 GREEN** both times); proven hash-vindex sharding (100 rows split 53/47) + VTOrc auto-reparent-on-primary-kill (~15s); ADR-0041. Adds the **relational (MySQL) sharding** showcase that PXC/Galera *replication* (0.G.3) doesn't provide.
-- Next: **Phase 0.P (nexus-infra-citus — PostgreSQL sharding)**, the last committed sharding phase before applications.
+- *(0.P was the last committed sharding phase; it is now SEALED — see the current-state summary at the top of this Status section.)*
 
-### Roadmap (status 2026-05-25)
+### Roadmap (status 2026-07-06 — Phase 0 infrastructure COMPLETE)
 
 ```
 INFRASTRUCTURE
@@ -72,9 +74,9 @@ INFRASTRUCTURE
   5. 0.N          MongoDB sharded cluster (extends nexus-infra-oltp)  ✅ SEALED (ADR-0040; smoke 50/50)
   6. 0.O          nexus-infra-vitess  (MySQL sharding — NEW repo)     ✅ SEALED (nexus-infra-vitess v0.1.0; ADR-0041; smoke 71/71)
   7. 0.P          nexus-infra-citus   (PG sharding — NEW repo)        ✅ SEALED (nexus-infra-citus v0.1.0; ADR-0042; smoke 69/69)
-  7. 0.P          nexus-infra-citus   (PostgreSQL sharding — NEW repo)
         ↓
-  nexus-cli adapters  — 7 base + VitessAdapter + CitusAdapter + sharded-Mongo
+  nexus-cli   — ✅ v0.8.7: full-fleet IClusterAdapter coverage (13 data/sharded + 5 non-data tiers)
+              + completion backlog (scale-up/VmrunVmResizer · swarm guarded restore · kafka resize-gate · FoundationAD backup/FSMO)
         ↓
   0.J nexus-shared → 0.K portfolio → app projects 1–14
 ```
@@ -96,7 +98,7 @@ See [`CHANGELOG.md`](./CHANGELOG.md) for canon history and [`MASTER-PLAN.md`](./
 - [`grezap/nexus-infra-registry`](https://github.com/grezap/nexus-infra-registry) — registry tier (`09-platform`, 4 VMs + VIP) — **0.L.4 HA Harbor SEALED 2026-05-25** (cold-rebuild-proven; ADR-0036): 2 stateless app nodes + dedicated PG/Redis HA datastore; MinIO S3 blobs; Trivy + cosign; Vault OIDC SSO.
 - [`grezap/nexus-infra-vitess`](https://github.com/grezap/nexus-infra-vitess) — Vitess-sharded MySQL tier (`07-vitess`, 12 VMs) — **`v0.1.0` SEALED 2026-06-03** (live-ratified + cold-rebuild-proven; `smoke-0.O.ps1` 71/71 GREEN; ADR-0041). 3 etcd topo + vtctld/VTOrc control + 2 vtgate routers (RR-DNS `vtgate.nexus.lab`, MySQL `:15306`) + 2 shards × 3 Percona Server 8.4 tablets; keyspace `commerce`, hash vindex, Vitess v24.0.1; full Vault-PKI mTLS. The **relational (MySQL) sharding** showcase (distinct from PXC/Galera *replication*, 0.G.3).
 - [`grezap/nexus-infra-citus`](https://github.com/grezap/nexus-infra-citus) — Citus-sharded PostgreSQL tier (`08-citus`, 9 VMs + 3 VRRP VIPs) — **`v0.1.0` SEALED 2026-06-03** (live-ratified + cold-rebuild-proven; `smoke-0.P.ps1` 69/69 GREEN incl worker Patroni failover; ADR-0042). 3 etcd DCS + coordinator Patroni pair + 2 worker Patroni pairs; PostgreSQL 17 + Citus 14.x; distributed (32-shard) + reference + colocated tables; every node-group a 2-node Patroni cluster fronted by a keepalived VRRP VIP that follows the leader (workers in `pg_dist_node` by VIP); full Vault-PKI mTLS. The **relational (PostgreSQL) sharding** showcase with full Patroni HA (distinct from Patroni *streaming replication*, 0.G.4).
-- [`grezap/nexus-cli`](https://github.com/grezap/nexus-cli) — operator surface; .NET 10 Native AOT, 22.75 MB win-x64 binary (under the 25 MB exit gate, 2.25 MB headroom). **`v0.5.0` tagged 2026-05-15 — Phase 0.F closed; all 5 master-plan verbs live**: `cluster-status` · `infrastructure {list, status, suspend, resume}` · `failover-test {consul-leader, nomad-leader, swarm-manager}` · `demo {list, run, record}` · **`kafka failover {east-to-west, west-to-east}`**. Live RTOs verified end-to-end: 1.55 s · 2.716 s · 21.59 s · 13.20 s · 13.57 s, all under their master-plan budgets.
+- [`grezap/nexus-cli`](https://github.com/grezap/nexus-cli) — operator surface; .NET 10 Native AOT, **28.25 MB** win-x64 binary (under the **≤30 MB** exit gate, ADR-0009). **`v0.8.7` tagged 2026-07-06** — the CLI now deeply manages **every cluster in the fleet**: full `IClusterAdapter` coverage of all 13 data/sharded families + all 5 non-data tiers (Vault/Foundation-AD · Swarm · Observability · Lakehouse · Registry), reached at v0.8.5, plus the **completion backlog** (v0.8.6 batch 1 + v0.8.7 batches 2-3): `cluster-status --verbose` timings, Redis/kafka acl, the `kafka` meta-cluster delegation, `scale-up`/`VmrunVmResizer` (vertical resize + safety gate), swarm guarded `backup restore --confirm-destructive`, FoundationAD `backup take` (`ntdsutil ifm`) + FSMO `failover-test`. The original v0.5.0 milestone (the 5 master-plan verbs — `cluster-status`/`infrastructure`/`failover-test`/`demo`/`kafka failover`) closed Phase 0.F on 2026-05-15; the 0.6.x–0.8.x line added the per-cluster `IClusterAdapter` families on top.
 - Repos below are planned; links will be added as each ships:
   - `nexus-shared` · `nexus-infra-k8s` · `nexus-infra-vitess` · `nexus-infra-citus` (0.O/0.P sharding)
   - 14 application projects (see MASTER-PLAN)

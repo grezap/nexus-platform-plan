@@ -1,6 +1,6 @@
 # Licensing canon
 
-How Windows guests in the NexusPlatform lab (88 VMs built through Phase 0.L.4) are licensed. See [ADR-0144](../adr/ADR-0144-windows-licensing.md) for the decision record.
+How Windows guests in the NexusPlatform lab (140 VMs built through Phase 0.P) are licensed. See [ADR-0144](../adr/ADR-0144-windows-licensing.md) for the decision record.
 
 ## TL;DR
 

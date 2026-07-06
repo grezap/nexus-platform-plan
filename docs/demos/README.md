@@ -1,8 +1,10 @@
 # Demo Playbooks — Index
 
-Seventeen guided scenarios that show NexusPlatform working. Each is a self-contained tour of a real workflow — no staged screenshots, no rehearsed videos. The scenarios are the acceptance evidence for the portfolio.
+Guided scenarios that show NexusPlatform working. Each is a self-contained tour of a real workflow — no staged screenshots, no rehearsed videos. The scenarios are the acceptance evidence for the portfolio.
 
-## Scenario catalog
+Two series: **DEMO-01..17** are the planned **application + infra scenarios** (they light up as their underlying capability ships), and **DEMO-18..28** are **realized infra + CLI tours** — each ships alongside a sealed `nexus-infra-*` tier or a `nexus-cli` adapter/verb release and is live-verified today.
+
+## Scenario catalog (DEMO-01..17 — application + infra scenarios)
 
 | ID | Title | Projects touched | Persona | Duration | Status |
 |---|---|---|---|---|---|
@@ -23,6 +25,24 @@ Seventeen guided scenarios that show NexusPlatform working. Each is a self-conta
 | [DEMO-15](./DEMO-15.md) | Analytics warehouse: sharded + replicated, survive a node loss | analytics infra (ClickHouse + StarRocks) | data-architect · CTO | 7 min | planned |
 | [DEMO-16](./DEMO-16.md) | Lakehouse: object store + table format + compute, survive a node loss | lakehouse infra (MinIO + Iceberg + Spark) | data-architect | 8 min | planned |
 | [DEMO-17](./DEMO-17.md) | Container registry: push, scan, sign — survive a node loss | registry infra (Harbor HA) | CTO · DevOps | 6 min | planned |
+
+## Realized tours (DEMO-18..28 — infra failure-mode + `nexus-cli` operator tours)
+
+These ship with a sealed tier or a `nexus-cli` release and are **live-verified today** (the System B JSON demos under [`nexus-cli/docs/demos/`](https://github.com/grezap/nexus-cli/tree/main/docs/demos) are their executable form).
+
+| ID | Title | Projects touched | Persona | Status |
+|---|---|---|---|---|
+| [DEMO-18](./DEMO-18.md) | StarRocks shared-data: storage-compute separation, survive a CN loss | analytics infra (StarRocks-SD) | data-architect | done |
+| [DEMO-19](./DEMO-19.md) | Foundation HA: kill the primary AD DC — auth + DNS survive | foundation infra (2-DC AD) | CTO | done |
+| [DEMO-20](./DEMO-20.md) | MongoDB sharded: kill a shard primary — cluster stays writable | oltp infra (mongo-sharded) | data-architect | done |
+| [DEMO-21](./DEMO-21.md) | Vitess-sharded MySQL: kill a shard primary — VTOrc auto-reparents | vitess infra | data-architect | done |
+| [DEMO-22](./DEMO-22.md) | Citus-sharded PostgreSQL: kill a worker Patroni leader — VIP follows | citus infra | data-architect | done |
+| [DEMO-23](./DEMO-23.md) | Drive the Vault trust root from the CLI — step-down, snapshot, recover-ha | nexus-cli · vault | SRE · DevOps | live |
+| [DEMO-24](./DEMO-24.md) | Drive the orchestration tier from the CLI — three-raft failover, drain, cert-rotate | nexus-cli · swarm | SRE · DevOps | live |
+| [DEMO-25](./DEMO-25.md) | Drive the observability tier from the CLI — VRRP cutover, ring scale-out, honest health | nexus-cli · observability | SRE | live |
+| [DEMO-26](./DEMO-26.md) | Drive the lakehouse tier from the CLI — one tool over MinIO + Iceberg/Nessie + Spark + ZK | nexus-cli · lakehouse | SRE · data-architect | live |
+| [DEMO-27](./DEMO-27.md) | Drive the Harbor registry tier from the CLI — app pair + datastore pair + MinIO | nexus-cli · registry | CTO · DevOps | live |
+| [DEMO-28](./DEMO-28.md) | Day-2 capacity ops from the CLI — vertical resize, cluster-safety gate, guarded restore | nexus-cli | SRE · DevOps | live |
 
 ## Playbook template enforcement
 
@@ -58,5 +78,6 @@ The portfolio website's Live Tour groups scenarios by persona:
 - **CTO tour** — DEMO-08 · DEMO-13 · DEMO-15 · DEMO-17 · DEMO-10 · DEMO-03 (failure modes, operations).
 - **Data architect tour** — DEMO-01 · DEMO-12 · DEMO-15 · DEMO-16 · DEMO-06 · DEMO-09 (data flow + analytics depth).
 - **AI-forward tour** — DEMO-04 · DEMO-02 · DEMO-05 · DEMO-07 (ML under the hood).
+- **Operator / SRE tour** — DEMO-23 · DEMO-24 · DEMO-25 · DEMO-26 · DEMO-27 · DEMO-28 (drive + recover every tier from one `nexus-cli` binary — failover, cert-rotate, scale, guarded restore).
 
 Each tour stitches the recordings back-to-back with transition cards between them.
