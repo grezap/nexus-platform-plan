@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — infra-hardening items 1–2: Postgres-VRRP failover fencing (0.L.2.1 + 0.L.4.1) (2026-07-08)
+
+- **System A `docs/demos/DEMO-29.md`** — "A catalog-DB failover that keeps the lakehouse open": the
+  lakehouse Iceberg catalog PG pair (VIP `.151`) now has a real one-shot failover
+  (`nexus failover-test cluster lakehouse --direction iceberg-pg`) — VRRP cutover + fence +
+  `pg_basebackup` re-seed (no split-brain), and Nessie stays served. Was a graceful N/A before. Pairs
+  with System B `nexus-cli/docs/demos/DEMO-167`.
+- **System A `docs/demos/DEMO-30.md`** — "A container-registry datastore failover with no split-brain":
+  the Harbor datastore PG+Redis pair (VIP `.119`) now has a real self-healing one-shot failover
+  (`nexus failover-test cluster registry --direction registry-db`) — VRRP cutover + PG promote + Redis
+  re-master + fence + `pg_basebackup` re-seed of the old primary. Was code-verified-but-DR-deferred
+  before. Pairs with System B `nexus-cli/docs/demos/DEMO-168`.
+- Items 1–2 of the four pre-Phase-1 infra-hardening items; both reuse one fence/re-seed pattern across the
+  two Postgres-VRRP tiers. Remaining: 0.O.1 Vitess engine-native backup · 0.N.1 mongo-sharded mTLS.
+
 ### Changed — documentation currency sweep (2026-07-07)
 
 - **Fleet count corrected to 140 VMs / Phase 0.P** across the canon and every repo README (the stale
