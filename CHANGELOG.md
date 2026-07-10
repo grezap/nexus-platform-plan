@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — infra-hardening item 4 (LAST): Phase 0.N.1 sharded-MongoDB wire mTLS (2026-07-10)
+
+- **System A `docs/demos/DEMO-32.md`** — "Zero-downtime mTLS for a sharded database": the 11-VM sharded
+  MongoDB cluster gains Vault-PKI wire mTLS (parity with the 0.G.2 mongo RS) and `nexus cert-rotate
+  mongo-sharded` rotates all 11 nodes online via `rotateCertificates` — no restart, no shard
+  re-election. Pairs with System B `nexus-cli/docs/demos/DEMO-170`.
+- Infra + adapter details in the `nexus-infra-oltp` / `nexus-infra-vmware` / `nexus-cli` CHANGELOGs; live
+  proof in `nexus-cli/docs/verification/0.N.1-mongo-sharded-wire-mtls.md`. **This completes all four
+  pre-Phase-1 infra-hardening items** (iceberg-pg fencing · registry-db re-seed · 0.O.1 Vitess
+  engine-native backup · 0.N.1 mongo-sharded mTLS).
+
 ### Added — infra-hardening item 3: Phase 0.O.1 Vitess engine-native BackupStorage (2026-07-09)
 
 - **System A `docs/demos/DEMO-31.md`** — "An engine-native backup of a sharded keyspace": the vitess
