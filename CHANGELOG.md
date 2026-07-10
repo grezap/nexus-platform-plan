@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — infra-hardening item 3: Phase 0.O.1 Vitess engine-native BackupStorage (2026-07-09)
+
+- **System A `docs/demos/DEMO-31.md`** — "An engine-native backup of a sharded keyspace": the vitess
+  tier gains a real Vitess `file` BackupStorage on shared NFSv4 (`/vt-backups`) + the `xtrabackup`
+  engine, so `nexus backup take/restore vitess` drive `vtctldclient BackupShard` / `RestoreFromBackup`
+  (was a logical `mysqldump` stopgap). `BackupShard` auto-selects a REPLICA (primary never touched);
+  restore is a safe dry-run by default and a real replica-restore only with `--confirm-destructive`
+  (the shard stays writable). Pairs with System B `nexus-cli/docs/demos/DEMO-169`.
+- **MASTER-PLAN 0.O row** + **glossary** ("Vitess BackupStorage") updated to engine-native. Infra +
+  adapter details in `nexus-infra-vitess` / `nexus-cli` CHANGELOGs; live proof in
+  `nexus-cli/docs/verification/0.O.1-vitess-engine-native-backup.md`.
+
 ### Added — infra-hardening items 1–2: Postgres-VRRP failover fencing (0.L.2.1 + 0.L.4.1) (2026-07-08)
 
 - **System A `docs/demos/DEMO-29.md`** — "A catalog-DB failover that keeps the lakehouse open": the
