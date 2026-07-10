@@ -5,6 +5,8 @@
 **Phase:** 0.O
 **Scope:** NEW repo `grezap/nexus-infra-vitess` (tier `07-vitess`) + `nexus-platform-plan/docs/infra/vms.yaml` (new `vitess` cluster) + foundation dnsmasq reservations (v8).
 
+> **Update 2026-07-09/10 — 0.O.1: the v1 logical `mysqldump`-per-shard backup was replaced by engine-native backup.** The cluster now runs a real Vitess **`file` BackupStorage** on shared NFSv4 (`/vt-backups`; NFS server on the control node, all 6 tablets mount it) with the **`xtrabackup`** engine, wired by `role-overlay-vitess-backup-storage.tf` (targeted overlay, no cold-rebuild). `VitessAdapter` backup/restore was rewritten to engine-native `BackupShard` / `RestoreFromBackup` (restore = dry-run by default; real onto a replica with `--confirm-destructive`). smoke-0.O §9.5 GREEN.
+
 ## Context
 
 The OLTP relational tier shows HA-by-**replication** (Percona XtraDB Cluster = Galera synchronous multi-master replication in 0.G.3; Patroni = PostgreSQL streaming replication in 0.G.4) but NOT relational **sharding**. Phase 0.N added document-store sharding (MongoDB `mongos`); Phase 0.O adds the **relational MySQL sharding** axis via **Vitess** — the CNCF-graduated system that shards MySQL horizontally behind a MySQL-protocol query router. Greg's committed direction (2026-05-22): a **completely separate first-class repo** (not an extension of `nexus-infra-oltp`), mirroring how 0.P Citus will be its own repo.

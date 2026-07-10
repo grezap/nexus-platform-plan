@@ -5,6 +5,8 @@
 **Phase:** 0.N
 **Scope:** new `nexus-infra-oltp/terraform/envs/oltp-mongo-sharded/` env + `nexus-platform-plan/docs/infra/vms.yaml` (new `mongo-sharded` cluster).
 
+> **Update 2026-07-10 — the deferred 0.N.1 wire mTLS is DONE + LIVE-VERIFIED.** The mTLS gap called out below (points 7/8, Consequences) is closed: `net.tls.mode = requireTLS` on all 11 nodes + per-host `mongo-sharded-server` Vault-PKI leaf certs (per-host Vault Agents) + online `rotateCertificates` (via MongoShardedAdapter `cert-rotate`, no restart / no re-election), bringing the sharded cluster to parity with the 0.G.2 RS posture. `clusterAuthMode` stays keyFile for member auth. Verified via an 11-VM cold-rebuild (one from-zero pass, 92 resources, zero transients); smoke-0.N §9 GREEN.
+
 ## Context
 
 Phase 0.G.2 shipped a 3-node MongoDB replica set (`mongo-1/2/3` at .71/.72/.73) showcasing replica-set HA. But the OLTP tier's broader portfolio narrative is HA-by-replication; the **sharding** axis was only demonstrated where it's the engine's native idiom (Redis hash-slots, Kafka partitions, ClickHouse shards, StarRocks tablets). To round out the relational+document sharding showcase, Phase 0.N adds a MongoDB sharded cluster (committed 2026-05-22 alongside 0.M / 0.O / 0.P).
