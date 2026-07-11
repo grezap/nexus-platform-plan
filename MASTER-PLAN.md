@@ -214,6 +214,8 @@ Sequenced by dependency. Each phase ends when the **acceptance gate** (§6) pass
 
 **Phases 1–14 total: ~58 weeks. Grand total: 72 weeks.**
 
+**Phase 1 status (`dataflow-studio`) — STARTED 2026-07-11.** Session 1 shipped the Week-1 first vertical slice to `main` (CI-green): the modular-monolith scaffold (`.slnx`: `Api` composition root + `SharedKernel` + `Commerce`/`Ingestion`/`Warehouse`/`Telemetry` modules + `Migrations.Oltp`) with NetArchTest-enforced module boundaries ([ADR-0001](https://github.com/grezap/dataflow-studio/blob/main/docs/adr/ADR-0001-modular-monolith.md)) and the Native-AOT Kafka-worker / no-EF-Core rule ([ADR-0002](https://github.com/grezap/dataflow-studio/blob/main/docs/adr/ADR-0002-dapper-fluentmigrator-on-aot-paths.md), E4); FluentMigrator migrations for all 11 `OltpDb` tables with reversible `Down()` (temporal `Customers`/`Products`, `audit.ChangeLog`, persisted computed `LineTotalUsd`, `ROWVERSION`); the **E1 up→down→up gate** green in CI (Testcontainers SQL Server) and locally (LocalDB); full repo hygiene (README 14-section · CHANGELOG · CONTRIBUTING · ADRs · sql-showcase · OpenAPI + AsyncAPI stubs · devcontainer · CI + Dependabot · Conventional Commits). The **`nexus-shared` (0.J)** repo was created public but kept **empty** until its first real consumer in the Week-2 CDC→Kafka slice — a **minimal 5-package seed** (`Nexus.Primitives`/`Kafka`/`Avro`/`Vault`/`Observability`), grown per E8 (§7.4). Remaining Weeks 2–4: CDC→Kafka(Avro) → StarRocks + ClickHouse (DbUp) · tests to 80% · Aspire AppHost · Docker/Swarm/K8s · demo + recording → §6 gate → `v0.1.0`.
+
 ---
 
 ## 5. Canon
