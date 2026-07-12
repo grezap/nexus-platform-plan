@@ -11,8 +11,10 @@ DataFlow Studio owns three data surfaces:
 | ClickHouse | `analytics` | Pipeline telemetry, latency observability |
 
 **Migration tools:** FluentMigrator for `OltpDb`; DbUp (SQL-script) for StarRocks and ClickHouse.
-**Acceptance gate:** MASTER-PLAN §6. FluentMigrator up → down → up passes in CI.
-**Status:** DDL authored; migrations begin in Phase 1.
+**Acceptance gate:** MASTER-PLAN §6. FluentMigrator up → down → up (OltpDb) + DbUp apply → re-apply
+idempotency (StarRocks + ClickHouse) pass in CI on throwaway containers.
+**Status:** OltpDb (FluentMigrator) + StarRocks/ClickHouse (DbUp) migrations **implemented + gate-green**
+(dataflow-studio Week-3 Session 3A; ADR-0005). Sink data loads land next (Sessions 3C/3D).
 
 ## SQL Server — `OltpDb` (source)
 
@@ -209,6 +211,12 @@ CREATE TABLE audit.ChangeLog (
 
 ## StarRocks — `dwh` (Kimball) + `analytics` (real-time serving)
 
+> **Applied corrections (dataflow-studio ADR-0005, live-validated on StarRocks 3.5.17):** PK-model
+> dimensions distribute by their **surrogate** key (StarRocks requires `DISTRIBUTED BY` ⊆ PRIMARY KEY);
+> `fact_transaction` uses **BUCKETS 32** to match its colocation peer `fact_order_line`;
+> `bridge_customer_seg` lists its **key columns first**. The ClickHouse cluster is **`nexus_analytics`**
+> (Guide 13). The idempotent migration scripts in `dataflow-studio` are the runnable source of truth.
+
 ```sql
 -- dwh.dim_date
 CREATE TABLE dwh.dim_date (
@@ -232,7 +240,7 @@ CREATE TABLE dwh.dim_customer (
     valid_to   DATETIME NOT NULL,
     is_current BOOLEAN NOT NULL
 ) PRIMARY KEY(customer_sk)
-DISTRIBUTED BY HASH(customer_id) BUCKETS 12;
+DISTRIBUTED BY HASH(customer_sk) BUCKETS 12;
 
 CREATE TABLE dwh.dim_product (
     product_sk BIGINT NOT NULL,
@@ -246,7 +254,7 @@ CREATE TABLE dwh.dim_product (
     valid_to   DATETIME NOT NULL,
     is_current BOOLEAN NOT NULL
 ) PRIMARY KEY(product_sk)
-DISTRIBUTED BY HASH(product_id) BUCKETS 12;
+DISTRIBUTED BY HASH(product_sk) BUCKETS 12;
 
 CREATE TABLE dwh.dim_warehouse (
     warehouse_sk INT NOT NULL,
@@ -254,7 +262,7 @@ CREATE TABLE dwh.dim_warehouse (
     code VARCHAR(16), name VARCHAR(200), region VARCHAR(100),
     country_iso2 CHAR(2), timezone_iana VARCHAR(64)
 ) PRIMARY KEY(warehouse_sk)
-DISTRIBUTED BY HASH(warehouse_id) BUCKETS 1;
+DISTRIBUTED BY HASH(warehouse_sk) BUCKETS 1;
 
 CREATE TABLE dwh.dim_carrier (
     carrier_sk INT NOT NULL,
@@ -296,7 +304,7 @@ CREATE TABLE dwh.fact_transaction (
     amount_usd DECIMAL(18,2), status TINYINT, occurred_at_utc DATETIME
 ) DUPLICATE KEY(transaction_id)
 PARTITION BY RANGE(txn_date_key) ()
-DISTRIBUTED BY HASH(order_id) BUCKETS 16
+DISTRIBUTED BY HASH(order_id) BUCKETS 32
 PROPERTIES("colocate_with" = "order_group");
 
 CREATE TABLE dwh.fact_inventory_snap (
@@ -309,8 +317,8 @@ DISTRIBUTED BY HASH(product_sk) BUCKETS 16;
 CREATE TABLE dwh.bridge_customer_seg (
     customer_sk BIGINT NOT NULL,
     segment_code VARCHAR(32) NOT NULL,
-    weight DECIMAL(9,6) NOT NULL,
-    as_of_date_key INT NOT NULL
+    as_of_date_key INT NOT NULL,
+    weight DECIMAL(9,6) NOT NULL
 ) DUPLICATE KEY(customer_sk, segment_code, as_of_date_key)
 DISTRIBUTED BY HASH(customer_sk) BUCKETS 12;
 ```
@@ -318,7 +326,7 @@ DISTRIBUTED BY HASH(customer_sk) BUCKETS 12;
 ## ClickHouse — `analytics` (telemetry)
 
 ```sql
-CREATE TABLE analytics.pipeline_events_local ON CLUSTER nexus_ch (
+CREATE TABLE analytics.pipeline_events_local ON CLUSTER nexus_analytics (
     event_time  DateTime64(3),
     trace_id    String,
     pipeline    LowCardinality(String),
@@ -330,8 +338,8 @@ CREATE TABLE analytics.pipeline_events_local ON CLUSTER nexus_ch (
 PARTITION BY toYYYYMMDD(event_time)
 ORDER BY (pipeline, stage, event_time);
 
-CREATE TABLE analytics.pipeline_events ON CLUSTER nexus_ch AS analytics.pipeline_events_local
-ENGINE = Distributed(nexus_ch, analytics, pipeline_events_local, rand());
+CREATE TABLE analytics.pipeline_events ON CLUSTER nexus_analytics AS analytics.pipeline_events_local
+ENGINE = Distributed(nexus_analytics, analytics, pipeline_events_local, rand());
 
 CREATE MATERIALIZED VIEW analytics.pipeline_latency_by_hour
 ENGINE = AggregatingMergeTree()
@@ -345,7 +353,7 @@ SELECT
 FROM analytics.pipeline_events_local
 GROUP BY hour, pipeline, stage;
 
-CREATE TABLE analytics.cdc_lag_seconds ON CLUSTER nexus_ch (
+CREATE TABLE analytics.cdc_lag_seconds ON CLUSTER nexus_analytics (
     event_time DateTime64(3),
     source LowCardinality(String),
     topic  LowCardinality(String),
@@ -353,7 +361,7 @@ CREATE TABLE analytics.cdc_lag_seconds ON CLUSTER nexus_ch (
 ) ENGINE = ReplicatedMergeTree('/ch/tables/{shard}/cdc_lag', '{replica}')
 PARTITION BY toYYYYMMDD(event_time) ORDER BY (source, topic, event_time);
 
-CREATE TABLE analytics.error_events ON CLUSTER nexus_ch (
+CREATE TABLE analytics.error_events ON CLUSTER nexus_analytics (
     event_time DateTime64(3),
     trace_id String,
     service LowCardinality(String),
