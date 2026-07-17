@@ -1,5 +1,12 @@
 # DEMO-01 · Place an order, watch it flow everywhere
 
+> **Status: partially live (2026-07-17).** The `dataflow-studio` spine of this scenario —
+> **OltpDb → SQL Server CDC → Debezium → curated Avro → StarRocks Kimball star (SCD2 dims + facts)** —
+> is built and runs on the lab today; you can replay it from zero right now (see §3a). Still pending:
+> the `nexus-platform` Gateway + Orders API + outbox (that project has not started), the ClickHouse
+> telemetry leg (dataflow-studio Week 3d), and the obs/trace leg (Week 3e). The scenario flips to
+> fully realized when those land.
+
 ## 1. What this shows
 
 A single customer order placed through the `nexus-platform` Gateway propagates through 9 systems in under one second: the Orders API commits to SQL Server AG, the outbox publisher emits to Kafka East, `dataflow-studio` CDC ingests it, the Avro-governed event lands in StarRocks for BI and ClickHouse for real-time analytics, and the obs stack shows a complete distributed trace. Target persona: the data architect who wants to see an end-to-end pipeline with proper governance.
@@ -15,7 +22,34 @@ A single customer order placed through the `nexus-platform` Gateway propagates t
 
 ## 3. Architecture snapshot
 
-*Filled in when the project ships.*
+```
+OltpDb (SQL Server AG, FCI .16)         source of truth — 11 tables, temporal + audit cols
+   │  SQL Server CDC (log-based; the pipeline never queries the OLTP tables)
+   ▼
+Debezium  (Kafka Connect .95/.96)       oltp.OltpDb.dbo.*  — raw JSON CDC envelopes (10 tables)
+   │  .NET curation worker (Ingestion module, data-driven catalog — ADR-0007)
+   ▼
+Curated Avro (Schema Registry .91)      dfs.<entity>.changed.v1 — 10 typed, versioned contracts
+   │  .NET Warehouse sink (ADR-0006)
+   ▼
+StarRocks dwh (FE .31 / BE .34-.36)     Kimball star: SCD2 dim_customer/dim_product + 4 facts
+   ⋯ ClickHouse analytics (Week 3d) · OpenLineage → Marquez + OTel traces (Week 3e)
+```
+
+### 3a. Replay the live segment today
+
+```powershell
+# from the dataflow-studio repo — each step is idempotent
+.\scripts\dfs-seed.ps1            # representative order-flow dataset into OltpDb
+.\scripts\dfs-curate.ps1          # raw CDC -> curated Avro (10 topics, 59 records on a fresh seed)
+.\scripts\dfs-warehouse-sink.ps1  # curated Avro -> StarRocks dwh (SCD2 dims + facts)
+.\scripts\dfs-trace.ps1           # follow ONE record across the faces
+```
+
+From-zero replay + the transient ledger:
+[`dataflow-studio/docs/handbook.md`](https://github.com/grezap/dataflow-studio/blob/main/docs/handbook.md).
+By-hand walkthrough (SSMS + Kafka console + DataGrip), including watching an SCD2 version appear:
+[`docs/demos/watch-the-pipeline.md`](https://github.com/grezap/dataflow-studio/blob/main/docs/demos/watch-the-pipeline.md).
 
 ## 4. Step-by-step script
 

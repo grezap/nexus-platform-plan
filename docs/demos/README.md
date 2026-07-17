@@ -8,7 +8,7 @@ Two series: **DEMO-01..17** are the planned **application + infra scenarios** (t
 
 | ID | Title | Projects touched | Persona | Duration | Status |
 |---|---|---|---|---|---|
-| [DEMO-01](./DEMO-01.md) | Place an order, watch it flow everywhere | dataflow-studio · nexus-platform · obs stack | data-architect | 6 min | planned |
+| [DEMO-01](./DEMO-01.md) | Place an order, watch it flow everywhere | dataflow-studio · nexus-platform · obs stack | data-architect | 6 min | **partially live** — the dataflow-studio spine (CDC → curated Avro → StarRocks SCD2 star) is replayable today; awaits nexus-platform + obs |
 | [DEMO-02](./DEMO-02.md) | Detect a fraudulent transaction in real time | sentinelml · streamcore | AI-forward | 5 min | planned |
 | [DEMO-03](./DEMO-03.md) | Onboard a new SaaS tenant | tenantcore | CTO | 4 min | planned |
 | [DEMO-04](./DEMO-04.md) | Ask LocalMind about your own portfolio | localmind | AI-forward | 5 min | planned |
