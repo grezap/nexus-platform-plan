@@ -14,7 +14,9 @@ DataFlow Studio owns three data surfaces:
 **Acceptance gate:** MASTER-PLAN §6. FluentMigrator up → down → up (OltpDb) + DbUp apply → re-apply
 idempotency (StarRocks + ClickHouse) pass in CI on throwaway containers.
 **Status:** OltpDb (FluentMigrator) + StarRocks/ClickHouse (DbUp) migrations **implemented + gate-green**
-(dataflow-studio Week-3 Session 3A; ADR-0005). Sink data loads land next (Sessions 3C/3D).
+(dataflow-studio Week-3 Session 3A; ADR-0005). Both sink loads are **live on the lab**: the StarRocks
+Kimball star via the .NET Warehouse worker (3C; ADR-0006) and the ClickHouse telemetry schema via
+**native Kafka-engine ingestion** (3D; ADR-0008).
 
 ## SQL Server — `OltpDb` (source)
 
@@ -371,3 +373,36 @@ CREATE TABLE analytics.error_events ON CLUSTER nexus_analytics (
 ) ENGINE = ReplicatedMergeTree('/ch/tables/{shard}/error_events', '{replica}')
 PARTITION BY toYYYYMMDD(event_time) ORDER BY (service, error_code, event_time);
 ```
+
+### Native Kafka-engine ingestion (dataflow-studio ADR-0008, Session 3D)
+
+The telemetry tables above are filled **by ClickHouse itself**, not by a .NET consumer: the workers
+produce JSON to `dfs.telemetry.*` and a `Kafka`-engine source table + materialized view per stream
+land it. Timestamps cross the wire as **epoch milliseconds** (`event_ms Int64`) and the MV converts
+with `fromUnixTimestamp64Milli` — `date_time_input_format` is a server/format setting rather than a
+per-table one, so an integer is the portable choice. The mTLS material lives in each data node's
+`<kafka>` server config, never in DDL. Pattern (repeated for `cdc_lag` and `error_events`):
+
+```sql
+CREATE TABLE analytics.pipeline_events_kafka ON CLUSTER nexus_analytics (
+    event_ms Int64, trace_id String, pipeline String, stage String,
+    status String, duration_ms UInt32, payload String
+) ENGINE = Kafka SETTINGS
+    kafka_broker_list = '192.168.10.21:9092,192.168.10.22:9092,192.168.10.23:9092',
+    kafka_topic_list  = 'dfs.telemetry.pipeline_events',
+    kafka_group_name  = 'dfs-clickhouse-pipeline-events',
+    kafka_format      = 'JSONEachRow',
+    kafka_num_consumers = 1;
+
+CREATE MATERIALIZED VIEW analytics.pipeline_events_kafka_mv ON CLUSTER nexus_analytics
+TO analytics.pipeline_events_local AS
+SELECT fromUnixTimestamp64Milli(event_ms) AS event_time,
+       trace_id, pipeline, stage, status, duration_ms, payload
+FROM analytics.pipeline_events_kafka;
+```
+
+> This layer is **lab-only** — a single-node CI container has no broker, so the migration runner's
+> `SingleNode` profile excludes the script while still creating and asserting the rest of the schema.
+> ClickHouse consumes as its own Kafka principal `CN=clickhouse-telemetry` (a dedicated
+> `pki_int/roles/kafka-clickhouse-client` role), granted `READ`/`DESCRIBE` on topic-prefix
+> `dfs.telemetry` and `READ` on group-prefix `dfs-clickhouse`.
