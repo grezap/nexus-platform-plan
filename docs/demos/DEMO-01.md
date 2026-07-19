@@ -1,11 +1,13 @@
 # DEMO-01 · Place an order, watch it flow everywhere
 
-> **Status: partially live (2026-07-17).** The `dataflow-studio` spine of this scenario —
-> **OltpDb → SQL Server CDC → Debezium → curated Avro → StarRocks Kimball star (SCD2 dims + facts)** —
-> is built and runs on the lab today; you can replay it from zero right now (see §3a). Still pending:
-> the `nexus-platform` Gateway + Orders API + outbox (that project has not started), the ClickHouse
-> telemetry leg (dataflow-studio Week 3d), and the obs/trace leg (Week 3e). The scenario flips to
-> fully realized when those land.
+> **Status: partially live (2026-07-19).** The `dataflow-studio` spine of this scenario —
+> **OltpDb → SQL Server CDC → Debezium → curated Avro → StarRocks Kimball star (SCD2 dims + facts)**,
+> **plus the ClickHouse telemetry leg** — is built and runs on the lab today; you can replay all of it
+> from zero right now (see §3a). The pipeline now also **observes itself**: per-stage latency,
+> end-to-end CDC lag and structured errors reach ClickHouse through **native Kafka-engine ingestion**
+> (dataflow-studio Week 3d, ADR-0008). Still pending: the `nexus-platform` Gateway + Orders API +
+> outbox (that project has not started) and the obs/trace leg (Week 3e). The scenario flips to fully
+> realized when those land.
 
 ## 1. What this shows
 
@@ -33,7 +35,11 @@ Curated Avro (Schema Registry .91)      dfs.<entity>.changed.v1 — 10 typed, ve
    │  .NET Warehouse sink (ADR-0006)
    ▼
 StarRocks dwh (FE .31 / BE .34-.36)     Kimball star: SCD2 dim_customer/dim_product + 4 facts
-   ⋯ ClickHouse analytics (Week 3d) · OpenLineage → Marquez + OTel traces (Week 3e)
+   │  telemetry emitted by BOTH stages -> dfs.telemetry.* (JSON)
+   ▼
+ClickHouse analytics (.44-.49)          pipeline_events · cdc_lag_seconds · error_events
+                                        ingested NATIVELY by ClickHouse's own Kafka engine + MVs
+   ⋯ OpenLineage → Marquez + OTel traces (Week 3e)
 ```
 
 ### 3a. Replay the live segment today
@@ -44,6 +50,7 @@ StarRocks dwh (FE .31 / BE .34-.36)     Kimball star: SCD2 dim_customer/dim_prod
 .\scripts\dfs-curate.ps1          # raw CDC -> curated Avro (10 topics, 59 records on a fresh seed)
 .\scripts\dfs-warehouse-sink.ps1  # curated Avro -> StarRocks dwh (SCD2 dims + facts)
 .\scripts\dfs-trace.ps1           # follow ONE record across the faces
+.\scripts\dfs-telemetry.ps1 all   # read back the pipeline's own telemetry; prove both error paths
 ```
 
 From-zero replay + the transient ledger:
