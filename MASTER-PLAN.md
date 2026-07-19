@@ -100,7 +100,7 @@ Layered on top of the Volume docs to reach enterprise caliber. Each enhancement 
 
 | # | Enhancement | Detail |
 |---|---|---|
-| E12 | Testing strategy codified | xUnit + FluentAssertions (unit) · Testcontainers (integration — real Kafka/SQL/PG/Mongo/CH/SR) · PactNet (contract — NexusPlatform services) · NetArchTest (architecture) · Stryker.NET (mutation, app-layer) · Verify.Xunit (snapshot) · WireMock.Net (HTTP stub). Coverage gate: 80% application layer, 60% overall. |
+| E12 | Testing strategy codified | xUnit + **Shouldly** (unit — MIT; replaced FluentAssertions, whose v8+ is proprietary and whose v7 is critical-fixes-only: dataflow-studio ADR-0009) · Testcontainers (integration — real Kafka/SQL/PG/Mongo/CH/SR) · PactNet (contract — NexusPlatform services) · NetArchTest (architecture) · Stryker.NET (mutation, app-layer) · Verify.Xunit (snapshot) · WireMock.Net (HTTP stub). Coverage gate: 80% application layer, 60% overall. |
 | E13 | Performance/load testing | **NBomber** per API service. Baseline in CI, full runs weekly via Nomad batch. Grafana panel for trend. |
 | E14 | API contract governance | **OpenAPI** (`docs/api/openapi.yaml`) per REST service. **AsyncAPI** (`docs/api/asyncapi.yaml`) per Kafka topic. Rendered through the Data Contract Portal (E7). |
 | E15 | Security posture | **mTLS** via Consul Connect between Swarm services · **Vault dynamic secrets** for DB creds (rotate 24h app tokens, 7d service creds) · **OWASP ZAP** baseline scans in CI · **Trivy** image scans via Harbor · **Syft → CycloneDX SBOM** per release. |
