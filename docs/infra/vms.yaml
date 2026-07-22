@@ -3,8 +3,8 @@
 # Source of truth for nexus-infra-vmware Terraform modules.
 
 metadata:
-  updated: 2026-07-10
-  vm_count: 140         # built/cold-rebuild-proven through Phase 0.P (count of the built rows below; 0.P live-ratified + cold-rebuild-proven 2026-06-03, smoke 69/69; +9 citus = etcd 3 + coord 2 + worker1 2 + worker2 2): edge 1 + foundation 6 (dc-nexus + dc-nexus-2 + vault-1/2/3 + vault-transit) + swarm 6 + kafka 15 + oltp 37 (redis 6 + mongo 3 + percona 5 + postgres 8 + sqlserver 4 + mongo-sharded 11) + analytics 20 (clickhouse 9 + starrocks sn 6 + starrocks-sd 5) + vitess 12 (etcd 3 + control 1 + vtgate 2 + shard1 3 + shard2 3) + citus 9 (etcd 3 + coord 2 + worker1 2 + worker2 2) + lakehouse 16 + registry 4 + observability 14 (prom-1/2 + loki-1/2/3 + tempo-1/2/3 + grafana-1/2 + grafana-pg-1/2 + otel-collector-1/2). The other 5 rows in this file are NOT yet built: platform-tools prefect/unleash/marquez/backstage 4 (future 0.J/0.K) + windows-workstations nexusdesk-dev 1 (app-project dev host).
+  updated: 2026-07-21
+  vm_count: 143         # built/cold-rebuild-proven through Phase 0.Q.1 (count of the BUILT rows below; 0.Q.1 marquez tier SEALED 2026-07-21 — live-ratified + cold-rebuild-proven: destroy→from-zero apply→smoke-0.Q.1 ALL GREEN, exit gate PASSED, +3 = marquez 1 + marquez-pg 2; VIP marquez-db .136 is not a VM). Breakdown of the 143: edge 1 + foundation 6 (dc-nexus + dc-nexus-2 + vault-1/2/3 + vault-transit) + swarm 6 + kafka 15 + oltp 37 (redis 6 + mongo 3 + percona 5 + postgres 8 + sqlserver 4 + mongo-sharded 11) + analytics 20 (clickhouse 9 + starrocks sn 6 + starrocks-sd 5) + vitess 12 (etcd 3 + control 1 + vtgate 2 + shard1 3 + shard2 3) + citus 9 (etcd 3 + coord 2 + worker1 2 + worker2 2) + lakehouse 16 + registry 4 + observability 14 (prom-1/2 + loki-1/2/3 + tempo-1/2/3 + grafana-1/2 + grafana-pg-1/2 + otel-collector-1/2) + platform-tools marquez 3 (marquez + marquez-pg-1/2). The other 4 rows in this file are NOT yet built: platform-tools prefect/unleash/backstage 3 (future 0.Q.2/0.Q.3/0.Q.4) + windows-workstations nexusdesk-dev 1 (app-project dev host). Note the VRRP VIP marquez-db .136 is not a VM and never counts.
   host: 10.0.70.101
   hypervisor: VMware Workstation Pro 17.5+
   plan_version: v0.1.5
@@ -500,8 +500,12 @@ clusters:
       - { name: zookeeper-3,    os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 40,  vmnet10: 192.168.10.157, vmnet11: 192.168.70.157, dir: H:\VMS\NexusPlatform\08-spark\zookeeper-3,    role: "Apache ZooKeeper ensemble (0.L.3); backplane-only" }
 
   platform-tools:
-    purpose: Harbor registry HA (Phase 0.L.4, repo nexus-infra-registry; ADR-0036) + future Prefect/Unleash/Marquez/Backstage (0.I/0.J/0.K)
-    phase: 0.L.4 (registry HA: 4 VMs + VIP) / 0.I-0.K (rest)
+    purpose: Harbor registry HA (Phase 0.L.4, repo nexus-infra-registry; ADR-0036) + Marquez OpenLineage HA (Phase 0.Q.1, repo nexus-infra-platform-tools; ADR-0043) + future Prefect/Unleash/Backstage (0.Q.2-0.Q.4)
+    # Phase-label correction 2026-07-20: these rows previously read "0.I/0.J/0.K", but all three IDs
+    # are already taken in MASTER-PLAN (0.I = observability tier, 0.J = nexus-shared NuGet, 0.K =
+    # portfolio website shell) and none of them scopes platform-tool deployment. Opened 0.Q as the
+    # platform-tools phase; Marquez = 0.Q.1. See MASTER-PLAN phase table + ADR-0043.
+    phase: 0.L.4 (registry HA: 4 VMs + VIP) / 0.Q.1 (marquez HA: 3 VMs + VIP) / 0.Q.2-0.Q.4 (rest)
     nodes:
       # Harbor application HA pair (stateless; round-robin DNS registry.nexus.lab; blobs in MinIO S3).
       # registry-1 disk right-sized 400->80 GB vs the original single-node local-blob spec: image
@@ -513,10 +517,21 @@ clusters:
       - { name: registry-pg-2,  os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 60,  vmnet10: 192.168.10.118, vmnet11: 192.168.70.118, dir: H:\VMS\NexusPlatform\09-platform\registry-pg-2,  role: "Harbor datastore PostgreSQL REPLICA + Redis replica (0.L.4)" }
       # registry-db.nexus.lab .119 = keepalived VRRP VIP (floats to the current datastore primary; no VM).
       # Future platform tools moved off .116-.119 (consumed by registry HA) to the free .125-.128 band.
-      - { name: prefect-server, os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 80,  vmnet10: 192.168.10.125, vmnet11: 192.168.70.125, dir: H:\VMS\NexusPlatform\09-platform\prefect-server, role: "Prefect 3 OSS self-host (future)" }
-      - { name: unleash-1,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.126, vmnet11: 192.168.70.126, dir: H:\VMS\NexusPlatform\09-platform\unleash-1,      role: "Unleash feature flags (future)" }
-      - { name: marquez,        os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.127, vmnet11: 192.168.70.127, dir: H:\VMS\NexusPlatform\09-platform\marquez,        role: "Marquez (OpenLineage UI) (future)" }
-      - { name: backstage,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.128, vmnet11: 192.168.70.128, dir: H:\VMS\NexusPlatform\09-platform\backstage,      role: "Backstage service catalog (optional, future)" }
+      - { name: prefect-server, os: deb13, vcpu: 2, ram_gb: 8, disk_gb: 80,  vmnet10: 192.168.10.125, vmnet11: 192.168.70.125, dir: H:\VMS\NexusPlatform\09-platform\prefect-server, role: "Prefect 3 OSS self-host (future 0.Q.2)" }
+      - { name: unleash-1,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.126, vmnet11: 192.168.70.126, dir: H:\VMS\NexusPlatform\09-platform\unleash-1,      role: "Unleash feature flags (future 0.Q.3)" }
+      # Marquez OpenLineage tier (Phase 0.Q.1, ADR-0043). Marquez ships as containers -> Docker CE +
+      # compose on the app node (mirrors the Harbor docker-on-VM precedent in this same tier), with a
+      # DEDICATED PostgreSQL HA pair rather than co-locating on registry-pg: lineage metadata is a
+      # first-class store with its own growth + retention profile, and sharing registry-pg would couple
+      # the lineage plane's availability to the image registry's.
+      - { name: marquez,        os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.127, vmnet11: 192.168.70.127, dir: H:\VMS\NexusPlatform\09-platform\marquez,        role: "Marquez API + web (OpenLineage) via docker-compose; Vault-PKI leaf (0.Q.1)" }
+      # Dedicated lineage datastore HA pair: PostgreSQL 17 master-replica + keepalived VRRP VIP.
+      # Mirrors registry-pg (0.L.4) / iceberg-pg (0.L.2) / grafana-pg (0.I.4). Addresses .134-.136 are
+      # the nearest contiguous free block: .129/.130 are free but .131-.133 are swarm workers.
+      - { name: marquez-pg-1,   os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 60,  vmnet10: 192.168.10.134, vmnet11: 192.168.70.134, dir: H:\VMS\NexusPlatform\09-platform\marquez-pg-1,   role: "Marquez datastore PostgreSQL PRIMARY (0.Q.1)" }
+      - { name: marquez-pg-2,   os: deb13, vcpu: 2, ram_gb: 2, disk_gb: 60,  vmnet10: 192.168.10.135, vmnet11: 192.168.70.135, dir: H:\VMS\NexusPlatform\09-platform\marquez-pg-2,   role: "Marquez datastore PostgreSQL REPLICA (0.Q.1)" }
+      # marquez-db.nexus.lab .136 = keepalived VRRP VIP (floats to the current lineage-datastore primary; no VM).
+      - { name: backstage,      os: deb13, vcpu: 2, ram_gb: 4, disk_gb: 40,  vmnet10: 192.168.10.128, vmnet11: 192.168.70.128, dir: H:\VMS\NexusPlatform\09-platform\backstage,      role: "Backstage service catalog (optional, future 0.Q.4)" }
 
   windows-workstations:
     purpose: Developer Windows 11 workstation for MAUI / nexus-desk test

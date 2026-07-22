@@ -105,7 +105,7 @@ VMnet10 third octet encodes cluster role so that IPs read as cluster identity:
 | 10.80.x | Redis cluster · MM2 · REST Proxy | .81–.89 | .81–.89 |
 | 10.90.x | obs stack · Schema Registry · Connect · ksqlDB | .85–.98 | .85–.98 |
 | 10.10.111+ | Swarm managers | .111–.113 | .111–.113 |
-| 10.10.115+ | **Platform tools (`09-platform`)** — Harbor registry HA (Phase 0.L.4, ADR-0036): app `registry-1`/`registry-2` `.115`/`.116`; datastore `registry-pg-1`/`registry-pg-2` `.117`/`.118`; **datastore VIP `registry-db.nexus.lab .119`** (VRRP). Future prefect/unleash/marquez/backstage moved to `.125`–`.128` (0.I/0.J/0.K) — `.116`–`.119` now consumed by registry HA | .115–.119 · .125–.128 | .115–.118 (VIP `.119` VMnet11-only) |
+| 10.10.115+ | **Platform tools (`09-platform`)** — Harbor registry HA (Phase 0.L.4, ADR-0036): app `registry-1`/`registry-2` `.115`/`.116`; datastore `registry-pg-1`/`registry-pg-2` `.117`/`.118`; **datastore VIP `registry-db.nexus.lab .119`** (VRRP). **Marquez OpenLineage HA (Phase 0.Q.1, ADR-0043):** app `marquez` `.127`; datastore `marquez-pg-1`/`marquez-pg-2` `.134`/`.135`; **datastore VIP `marquez-db.nexus.lab .136`** (VRRP). Future prefect `.125` / unleash `.126` / backstage `.128` (0.Q.2–0.Q.4) — `.116`–`.119` consumed by registry HA. *(Phase labels corrected 2026-07-20: previously read `0.I/0.J/0.K`, all three already allocated elsewhere.)* The `.134`–`.136` block is the nearest contiguous free space: `.129`/`.130` are free but `.131`–`.133` are Swarm workers | .115–.119 · .125–.128 · .134–.136 | .115–.118 · .125–.128 · .134–.135 (VIPs `.119`/`.136` VMnet11-only) |
 | 10.10.121+ | Vault cluster | .121–.123 | .121–.123 |
 | 10.10.131+ | Swarm workers | .131–.133 | .131–.133 |
 | 10.10.14x–15x | **Lakehouse (`08-spark`, Phase 0.L)** — spark-master-1 `.140`; MinIO `.141`–`.144`; spark-worker-1/2 `.145`/`.146`; iceberg-rest `.147`/`.148`; iceberg-pg `.149`/`.150`; **catalog-DB VIP `.151`** (VRRP); JupyterHub `.152` (future); spark-master-2 `.153`; spark-worker-3 `.154`; ZooKeeper `.155`–`.157` | .140–.157 | .140–.157 (VMnet10 backplane; VIP `.151` is VMnet11-only) |
@@ -168,6 +168,8 @@ Complete VM → IP map lives in [`vms.yaml`](./vms.yaml).
   - `spark-master.nexus.lab` → the 2 Spark HA masters `.140`/`.153` (Phase 0.L.3; round-robin for the Web UI `:8080` — the Spark cluster's multi-master URL `spark://…:7077,…:7077` uses node IPs, and ZooKeeper `.155`–`.157` elects the live master). ZooKeeper has no VMnet11 DNS — it is backplane-IP-only by design.
   - `registry.nexus.lab` → the 2 Harbor HA app nodes `.115`/`.116` (Phase 0.L.4; HTTPS `:443` — two stateless Harbor instances, any one serves any push/pull; per-host `registry-server` PKI certs carry this name in their SANs; ADR-0036)
   - `registry-db.nexus.lab` → registry datastore **VRRP VIP `.119`** (Phase 0.L.4; PostgreSQL `:5432` + Redis `:6379` — keepalived floats the VIP to the current primary of the registry-pg `.117`/`.118` master-replica pair; the PG leaf cert SAN/IP-SANs carry this name + `.119`)
+  - `marquez.nexus.lab` → the Marquez app node `.127` (Phase 0.Q.1; HTTPS `:5000` API + `:3000` web, both fronted by the node's Vault-PKI leaf — a single app node, so this is a plain host-record, not round-robin; the OpenLineage receiving endpoint for DataFlow Studio and, later, Prefect flows per E23; ADR-0043)
+  - `marquez-db.nexus.lab` → Marquez lineage datastore **VRRP VIP `.136`** (Phase 0.Q.1; PostgreSQL `:5432` — keepalived floats the VIP to the current primary of the marquez-pg `.134`/`.135` master-replica pair; the PG leaf cert SAN/IP-SANs carry this name + `.136`; mirrors `registry-db .119` / `iceberg-db .151` / `grafana-db .185`)
   - `prometheus.nexus.lab` → Prom HA `.170`/`.171` (Phase 0.I.1; HTTPS `:9090` — both Proms independently scrape every fleet target, Grafana datasource dedups; no VIP because the scrape model already covers HA)
   - `loki.nexus.lab` → Loki SSD `.172`–`.174` (Phase 0.I.2; HTTPS `:3100` — push API + query API; memberlist ring on all 3 nodes; durable storage in MinIO `bucket=loki`)
   - `tempo.nexus.lab` → Tempo scalable `.175`–`.177` (Phase 0.I.3; OTLP gRPC `:4317` + OTLP HTTP `:4318` + query `:3200`; memberlist ring; durable storage in MinIO `bucket=tempo`)
@@ -291,7 +293,30 @@ reservation file. Primary MAC plan (`00:50:56:3F:00:XX`):
 
 The 3 VRRP VIPs (`coord`/`worker1`/`worker2.citus.nexus.lab` → `.211`/`.212`/`.213`)
 are keepalived-floated (leader-following), **not** DHCP reservations — they get DNS
-host-records, no MAC. MAC high-water is now `DF`.
+host-records, no MAC. MAC high-water after Citus is `DF`.
+
+### Platform-tools-tier MAC reservations (VMnet11 dhcp-host)
+
+The 3 Marquez nodes (Phase 0.Q.1, tier `09-platform`; ADR-0043) get static-pinned
+VMnet11 IPs in the contiguous `:E0`–`:E2` MAC block, just past the Citus tier
+(`:D7`–`:DF`). Secondary NICs (VMnet10 backplane) use the same sixth byte with
+fifth byte `01`. Pre-apply MAC audit ALL CLEAR vs every foundation reservation
+file. Primary MAC plan (`00:50:56:3F:00:XX`):
+
+| Node | VMnet11 | Primary MAC `…:00:` | Node | VMnet11 | Primary MAC `…:00:` |
+|---|---|---|---|---|---|
+| marquez      | .127 | `E0` | marquez-pg-2 | .135 | `E2` |
+| marquez-pg-1 | .134 | `E1` |  |  |  |
+
+Note the deliberate IP discontinuity: `marquez` keeps its long-reserved `.127` slot
+in the platform-tools `.125`–`.128` band, while the datastore pair takes `.134`/`.135`
+— the nearest contiguous free block, since `.131`–`.133` are Swarm workers. The MAC
+block stays contiguous regardless; MACs are allocated by build order, not by IP.
+
+The VRRP VIP (`marquez-db.nexus.lab` → `.136`) is keepalived-floated and is **not** a
+DHCP reservation — it gets a DNS host-record, no MAC. The remaining platform tools
+(prefect `.125`, unleash `.126`, backstage `.128`) are unbuilt and hold no MACs yet;
+they will continue the block at `:E3`+ when 0.Q.2–0.Q.4 land. MAC high-water is now `E2`.
 
 ## Firewall posture
 

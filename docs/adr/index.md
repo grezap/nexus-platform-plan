@@ -50,6 +50,7 @@ Architecture Decision Records across the portfolio. Shared ADRs (0001–0010) ar
 | 0040 | [Phase 0.N: MongoDB sharded cluster — separate from the 0.G.2 3-node RS (3 config + 2×3 shards + 2 mongos; document-store sharding showcase) — +0.N.1 wire mTLS done (2026-07-10)](./ADR-0040-mongodb-sharded-cluster-separate-from-0g2-rs.md) | accepted | 2026-05-28 |
 | 0041 | [Phase 0.O: Vitess-sharded MySQL (Percona Server) — new repo `nexus-infra-vitess` (3 etcd + vtctld/VTOrc + 2 vtgate + 2×3 tablets; relational-MySQL sharding showcase, full mTLS) — +0.O.1 engine-native backup done (2026-07-09)](./ADR-0041-vitess-sharded-mysql-cluster.md) | accepted | 2026-05-30 |
 | 0042 | [Phase 0.P: Citus-sharded PostgreSQL with full Patroni HA — new repo `nexus-infra-citus` (3 etcd DCS + coordinator Patroni pair + 2×2 worker Patroni groups + 3 keepalived VRRP VIPs; PG-native sharding showcase, PG 17 + Citus 14.x, full mTLS)](./ADR-0042-citus-sharded-postgresql-cluster.md) | accepted | 2026-06-03 |
+| 0043 | [Phase 0.Q.1: Marquez / OpenLineage tier — new repo `nexus-infra-platform-tools` (marquez app node on Docker Compose + dedicated PostgreSQL HA pair with keepalived VRRP VIP; closes E16, opens the 0.Q platform-tools phase)](./ADR-0043-marquez-openlineage-tier.md) | accepted | 2026-07-20 |
 | 0144 | [Windows licensing posture — MSDN primary, Evaluation fallback](./ADR-0144-windows-licensing.md) | accepted | 2026-04-22 |
 
 ## Per-project ADRs

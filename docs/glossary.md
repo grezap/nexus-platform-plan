@@ -349,7 +349,7 @@ A **workflow orchestrator** — defines DAGs of tasks, schedules them, retries o
 
 ### Marquez (OpenLineage)
 A **data-lineage backend**. Apps and pipelines emit OpenLineage events declaring which datasets they read and write; Marquez stores these and renders the resulting dependency graph. Lets you ask: "if I change source table X, what downstream pipelines / tables / dashboards break?"
-*In NexusPlatform:* receives OpenLineage emissions from Prefect, Spark, and Kafka Connect; powers a "what-if I change this?" dependency view across the fleet.
+*In NexusPlatform:* runs as its own tier — Phase **0.Q.1**, repo `nexus-infra-platform-tools`, ADR-0043: the `marquez` node (`.127`, API + web via docker-compose) on a dedicated PostgreSQL HA pair (`marquez-pg-1/2`, VRRP VIP `marquez-db.nexus.lab .136`). First emitter is the Phase-1 app **DataFlow Studio**; Prefect (E23), Spark, lakehouse-core and Kafka Connect follow. Powers a "what-if I change this?" dependency view across the fleet. Serves enhancement **E16**.
 
 ### dbt (data build tool)
 A **transformation framework** for warehouses. You write SQL `SELECT` statements as `models` (each becomes a table or view); dbt compiles + runs them in dependency order, captures lineage, and tests data quality. Standard in modern analytics engineering.

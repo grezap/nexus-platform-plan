@@ -2,7 +2,7 @@
 
 Guided scenarios that show NexusPlatform working. Each is a self-contained tour of a real workflow — no staged screenshots, no rehearsed videos. The scenarios are the acceptance evidence for the portfolio.
 
-Two series: **DEMO-01..17** are the planned **application + infra scenarios** (they light up as their underlying capability ships), and **DEMO-18..32** are **realized infra + CLI tours** — each ships alongside a sealed `nexus-infra-*` tier or a `nexus-cli` adapter/verb release and is live-verified today.
+Two series: **DEMO-01..17** are the planned **application + infra scenarios** (they light up as their underlying capability ships), and **DEMO-18..33** are **realized infra + CLI tours** — each ships alongside a sealed `nexus-infra-*` tier or a `nexus-cli` adapter/verb release and is live-verified today.
 
 ## Scenario catalog (DEMO-01..17 — application + infra scenarios)
 
@@ -26,7 +26,7 @@ Two series: **DEMO-01..17** are the planned **application + infra scenarios** (t
 | [DEMO-16](./DEMO-16.md) | Lakehouse: object store + table format + compute, survive a node loss | lakehouse infra (MinIO + Iceberg + Spark) | data-architect | 8 min | planned |
 | [DEMO-17](./DEMO-17.md) | Container registry: push, scan, sign — survive a node loss | registry infra (Harbor HA) | CTO · DevOps | 6 min | planned |
 
-## Realized tours (DEMO-18..32 — infra failure-mode + `nexus-cli` operator tours)
+## Realized tours (DEMO-18..33 — infra failure-mode + `nexus-cli` operator tours)
 
 These ship with a sealed tier or a `nexus-cli` release and are **live-verified today** (the System B JSON demos under [`nexus-cli/docs/demos/`](https://github.com/grezap/nexus-cli/tree/main/docs/demos) are their executable form).
 
@@ -47,6 +47,7 @@ These ship with a sealed tier or a `nexus-cli` release and are **live-verified t
 | [DEMO-30](./DEMO-30.md) | Harbor datastore failover — registry-db VRRP cutover, controlled DR re-seed | nexus-cli · registry | CTO · DevOps | live |
 | [DEMO-31](./DEMO-31.md) | Vitess engine-native backup — `file` BackupStorage on NFS + xtrabackup, restore onto a replica | nexus-cli · vitess | SRE · data-architect | live |
 | [DEMO-32](./DEMO-32.md) | Sharded-Mongo wire mTLS — zero-downtime online cert rotation (no re-election) | nexus-cli · mongo-sharded | SRE · data-architect | live |
+| [DEMO-33](./DEMO-33.md) | Emit OpenLineage into Marquez — a 2-job / 3-dataset run graph read back over TLS, on an HA lineage store | platform-tools infra (Marquez / OpenLineage) | data-architect · platform-engineer | live |
 
 ## Playbook template enforcement
 
@@ -80,7 +81,7 @@ The portfolio website's Live Tour groups scenarios by persona:
 
 - **Recruiter tour** — DEMO-11 · DEMO-14 · DEMO-03 (highest "wow", lowest prerequisite).
 - **CTO tour** — DEMO-08 · DEMO-13 · DEMO-15 · DEMO-17 · DEMO-10 · DEMO-03 (failure modes, operations).
-- **Data architect tour** — DEMO-01 · DEMO-12 · DEMO-15 · DEMO-16 · DEMO-06 · DEMO-09 (data flow + analytics depth).
+- **Data architect tour** — DEMO-01 · DEMO-12 · DEMO-15 · DEMO-16 · DEMO-06 · DEMO-09 · DEMO-33 (data flow + analytics depth + lineage / impact analysis).
 - **AI-forward tour** — DEMO-04 · DEMO-02 · DEMO-05 · DEMO-07 (ML under the hood).
 - **Operator / SRE tour** — DEMO-23 · DEMO-24 · DEMO-25 · DEMO-26 · DEMO-27 · DEMO-28 · DEMO-29 · DEMO-30 · DEMO-31 · DEMO-32 (drive + recover every tier from one `nexus-cli` binary — failover, cert-rotate, scale, guarded restore, DR re-seed, engine-native backup, zero-downtime mTLS rotation).
 
