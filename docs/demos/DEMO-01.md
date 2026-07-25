@@ -1,6 +1,12 @@
 # DEMO-01 · Place an order, watch it flow everywhere
 
-> **Status: partially live (2026-07-19).** The `dataflow-studio` spine of this scenario —
+> **Status: the `dataflow-studio` spine is SEALED `v0.1.0` (2026-07-25).** The pipeline — OltpDb → CDC →
+> Debezium → curated Avro → StarRocks star + ClickHouse telemetry, with all three self-observation planes
+> (Tempo, ClickHouse, Marquez) — is complete, tested to the §6 gate, orchestrated (Aspire) and packaged
+> (Docker/Swarm/K8s). Still pending for the *full* scenario below: the `nexus-platform` Gateway + Orders
+> API + outbox (that project has not started). The original status note follows.
+>
+> **partially live (2026-07-19).** The `dataflow-studio` spine of this scenario —
 > **OltpDb → SQL Server CDC → Debezium → curated Avro → StarRocks Kimball star (SCD2 dims + facts)**,
 > **plus the ClickHouse telemetry leg** — is built and runs on the lab today; you can replay all of it
 > from zero right now (see §3a). The pipeline now also **observes itself**: per-stage latency,
