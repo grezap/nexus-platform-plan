@@ -6,6 +6,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 1 begins: dataflow-studio v0.1.0 + nexus-cli v0.9.0 `deploy` verb (2026-07-25)
+
+- **Phase 1 application work has started.** `grezap/dataflow-studio` sealed **`v0.1.0`** (Week 4) — the
+  OLTP→CDC→curated-Avro→StarRocks/ClickHouse pipeline with Aspire orchestration, container packaging, and
+  OpenTelemetry + OpenLineage self-observation (E16). `grezap/nexus-cli` shipped **`v0.9.0`** — the first
+  Phase-1 verb `deploy <project>` (plans + runs an app's build → migrate → deploy recipes; knows
+  `dataflow-studio`), on top of the v0.8.12 infra-100%-complete milestone.
+
+### Added — Phase 0.Q.1: Marquez / OpenLineage platform-tools tier (SEALED 2026-07-21)
+
+- **New infra repo `grezap/nexus-infra-platform-tools`** (tier `09-platform`, phase **0.Q**). **0.Q.1 Marquez
+  SEALED** (live-ratified + cold-rebuild-proven; ADR-0043): `marquez` API+web via docker-compose + a dedicated
+  PostgreSQL 17 HA pair (`marquez-pg-1/2`, keepalived VRRP VIP `marquez-db.nexus.lab .136`). 3 VMs + 1 VIP;
+  fleet **140 → 143 VMs**. Serves E16 (the OpenLineage sink for dataflow-studio). 0.Q.2 Prefect / 0.Q.3 Unleash
+  / 0.Q.4 Backstage remain future. Canon updated: `vms.yaml` (vm_count 143, plan_version v0.1.5), the MASTER-PLAN
+  phase table (0.Q row + E16), and manual Guide 24.
+
 ### Added — infra-hardening item 4 (LAST): Phase 0.N.1 sharded-MongoDB wire mTLS (2026-07-10)
 
 - **System A `docs/demos/DEMO-32.md`** — "Zero-downtime mTLS for a sharded database": the 11-VM sharded

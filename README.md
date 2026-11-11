@@ -4,8 +4,8 @@
 
 This repository is the single source of truth that links the **14 Volumes of design docs**
 (`Vol00-Master-Blueprint` through `Vol13-Portfolio-Presentation`, plus the newly introduced
-`Vol14-Lakehouse-Core`) to **executable work** across 14 application projects, 10 built
-infrastructure repositories, ~75 ADRs, ~150 database tables, and 140 VMs (built/cold-rebuild-proven through Phase 0.P).
+`Vol14-Lakehouse-Core`) to **executable work** across 14 application projects, 11 built
+infrastructure repositories, ~75 ADRs, ~150 database tables, and 143 VMs (built/cold-rebuild-proven through Phase 0.Q.1).
 
 It contains no application code. Every other repo in the portfolio references this one.
 
@@ -15,7 +15,7 @@ It contains no application code. Every other repo in the portfolio references th
 |---|---|
 | Recruiter / non-technical viewer | [`docs/start-here.md`](./docs/start-here.md) — pick a 3–8 min demo scenario |
 | CTO / prospective client | [`MASTER-PLAN.md`](./MASTER-PLAN.md) — full scope, phases, acceptance gates |
-| **DevOps operator / lab rebuilder** | **[`docs/setup-guides.md`](./docs/setup-guides.md) — exact step-by-step replay path for every tier (140 VMs, 10 tiers): which VMs come alive in what order, how to bring each up from zero, selective-ops index ("set up only X")** |
+| **DevOps operator / lab rebuilder** | **[`docs/setup-guides.md`](./docs/setup-guides.md) — exact step-by-step replay path for every tier (143 VMs, 11 tiers): which VMs come alive in what order, how to bring each up from zero, selective-ops index ("set up only X")** |
 | Engineer reading the code | [`docs/skills-coverage.md`](./docs/skills-coverage.md) — which project demonstrates what |
 | Data architect | [`schemas/`](./schemas/) — enterprise DDL per project |
 | DevOps reviewer | [`docs/infra/`](./docs/infra/) — VM inventory, network canon, phase gates |
@@ -23,7 +23,7 @@ It contains no application code. Every other repo in the portfolio references th
 ## Portfolio scope at a glance
 
 - **14 application projects** (Clean Arch / Vertical Slice / Modular Monolith / Microservices)
-- **10 built infrastructure repos** (vmware, swarm-nomad, kafka, oltp, analytics, lakehouse, registry, observability, vitess, citus) + planned (k8s, shared NuGets)
+- **11 built infrastructure repos** (vmware, swarm-nomad, kafka, oltp, analytics, lakehouse, registry, observability, vitess, citus, platform-tools) + planned (k8s, shared NuGets)
 - **30 enhancements** (E1–E30) layered on top of the Volume docs to reach enterprise caliber
 - **32 guided demo scenarios** (DEMO-01 → DEMO-17 planned application/infra scenarios + DEMO-18 → DEMO-32 realized infra failure-mode + `nexus-cli` operator tours, live-verified), auto-recorded via Playwright + VHS
 - **Four skill dimensions** every project demonstrates: .NET engineering & architecture, advanced SQL & analytics, Python, DevOps literacy
@@ -44,7 +44,7 @@ Changes to canon (network, enhancements, gates) land here first, then propagate 
 
 ## Status
 
-- **Phase 0 — Infrastructure: COMPLETE** — all 10 infra repos live + cold-rebuild-proven; **140 VMs** built through Phase 0.P (foundation → orchestration → Kafka → OLTP 6/6 → analytics → lakehouse → registry → observability → Vitess + Citus sharding). The platform-wide **CA rollover is COMPLETE (2026-07-04/05)** — every tier re-issued to the new Vault PKI root. The operator CLI **`nexus-cli` is 🏁 100% COMPLETE at `v0.8.12` (2026-07-10)**: full-fleet `IClusterAdapter` coverage (all 13 data/sharded families + all 5 non-data tiers) reached at v0.8.5, then the **completion backlog** closed the remaining in-CLI gaps (v0.8.6 batch 1 + v0.8.7 batches 2-3: `scale-up`/`VmrunVmResizer`, swarm guarded `backup restore --confirm-destructive`, kafka controller-leader resize-gate, FoundationAD `backup take`/FSMO `failover-test`), and **v0.8.8–v0.8.12** finished the infra-hardening block 4/4 (0.N.1 MongoShardedAdapter wire-mTLS cert-rotate + 0.O.1 VitessAdapter engine-native backup + CA rollover) — all 13 GAPs closed, GENUINE-NA rulings reviewed+confirmed, no remaining gaps. Next: **Phase 1 applications**.
+- **Phase 0 — Infrastructure: COMPLETE** — all 11 infra repos live + cold-rebuild-proven; **143 VMs** built through Phase 0.Q.1 (foundation → orchestration → Kafka → OLTP 6/6 → analytics → lakehouse → registry → observability → Vitess + Citus sharding → Marquez/OpenLineage platform-tools). The platform-wide **CA rollover is COMPLETE (2026-07-04/05)** — every tier re-issued to the new Vault PKI root. The operator CLI **`nexus-cli` is 🏁 100% COMPLETE at `v0.8.12` (2026-07-10)**: full-fleet `IClusterAdapter` coverage (all 13 data/sharded families + all 5 non-data tiers) reached at v0.8.5, then the **completion backlog** closed the remaining in-CLI gaps (v0.8.6 batch 1 + v0.8.7 batches 2-3: `scale-up`/`VmrunVmResizer`, swarm guarded `backup restore --confirm-destructive`, kafka controller-leader resize-gate, FoundationAD `backup take`/FSMO `failover-test`), and **v0.8.8–v0.8.12** finished the infra-hardening block 4/4 (0.N.1 MongoShardedAdapter wire-mTLS cert-rotate + 0.O.1 VitessAdapter engine-native backup + CA rollover) — all 13 GAPs closed, GENUINE-NA rulings reviewed+confirmed, no remaining gaps. **Phase 1 applications are underway** — `nexus-cli v0.9.0` (2026-07-25) added the first Phase-1 verb `deploy <project>`, and **`dataflow-studio` shipped `v0.1.0`** (Week 4, sealed 2026-07-25).
 - *(Historical phase-closure detail follows — each bullet records a sealed sub-phase.)*
 - **Phase 0 — Infrastructure** *(historical: was in flight, ~85% complete)*. All five core infra repos are live and cold-rebuildable; the operator CLI is at `v0.5.0` (**all 5 master-plan verbs live, Phase 0.F closed**); the Kafka ecosystem tier is tagged `v0.1.0`; the **OLTP tier is SEALED 5/5** — Redis + MongoDB + Percona/ProxySQL + Patroni/etcd/HAProxy + **SQL Server FCI + Always On AG** (live-ratified 2026-05-22, `smoke-0.G.7.ps1` ALL GREEN 56/56).
 - Phases closed: **0.B / 0.C / 0.D / 0.E / 0.F / 0.H** + **Phase 0.G.1-0.G.3 + 0.G.3.5** (OLTP first 3 clusters cold-rebuild proven). Phase 0.D foundation tier (Vault HA + PKI + LDAPS + Transit auto-unseal + GMSA scaffold + Vault Agents) ✅; Phase 0.E orchestration tier (3+3 Swarm + Nomad + Consul + Portainer CE, mTLS end-to-end) ✅ — tagged `v0.2.0`; Phase 0.H Kafka ecosystem tier ✅ — tagged `v0.1.0`; **Phase 0.F operator CLI ✅ tagged `v0.5.0`**; **Phase 0.G.1-0.G.3 + 0.G.3.5 ✅ all cold-rebuild proven 2026-05-18 via per-cluster envs + per-engine templates** (per the architectural canon born from 0.G.3's 16-transient stall).
@@ -59,12 +59,12 @@ Changes to canon (network, enhancements, gates) land here first, then propagate 
 - **Phase 0.O (nexus-infra-vitess — Vitess-sharded MySQL) ✅ SEALED 2026-06-03** — `grezap/nexus-infra-vitess` **`v0.1.0`**, **12 VMs on tier `07-vitess`** (3 etcd topo + vtctld/VTOrc control + 2 vtgate routers + 2 shards × 3 Percona tablets): keyspace `commerce`, 2 shards (`-80`/`80-`) on a **hash vindex**, **Vitess v24.0.1** + **Percona Server 8.4 LTS** + **etcd 3.5.16**, full Vault-PKI mTLS on every gRPC channel + the mysqld wire + the vtgate MySQL listener. Live-ratified **and cold-rebuild-proven** (`smoke-0.O.ps1` **71/71 GREEN** both times); proven hash-vindex sharding (100 rows split 53/47) + VTOrc auto-reparent-on-primary-kill (~15s); ADR-0041. Adds the **relational (MySQL) sharding** showcase that PXC/Galera *replication* (0.G.3) doesn't provide.
 - *(0.P was the last committed sharding phase; it is now SEALED — see the current-state summary at the top of this Status section.)*
 
-### Roadmap (status 2026-07-10 — Phase 0 infrastructure COMPLETE)
+### Roadmap (status 2026-07-25 — Phase 0 infrastructure COMPLETE; Phase 1 applications underway)
 
 ```
 INFRASTRUCTURE
   1. 0.G.5/0.G.6  Analytics (ClickHouse + StarRocks)        ✅ DONE (nexus-infra-analytics v0.1.0)
-  2. 0.L          Lakehouse + registry                      ◐ IN PROGRESS
+  2. 0.L          Lakehouse + registry                      ✅ COMPLETE (2026-05-26)
        0.L.1 MinIO · 0.L.2 Iceberg · 0.L.3 Spark            ✅ SEALED (nexus-infra-lakehouse)
        0.L.4 Harbor HA                                      ✅ SEALED (nexus-infra-registry; ADR-0036)
        0.L.5 StarRocks shared-data/CN                       ✅ SEALED (nexus-infra-analytics extension; ADR-0037; smoke 69/69 with chaos)
@@ -74,12 +74,13 @@ INFRASTRUCTURE
   5. 0.N          MongoDB sharded cluster (extends nexus-infra-oltp)  ✅ SEALED (ADR-0040; smoke 50/50)
   6. 0.O          nexus-infra-vitess  (MySQL sharding — NEW repo)     ✅ SEALED (nexus-infra-vitess v0.1.0; ADR-0041; smoke 71/71)
   7. 0.P          nexus-infra-citus   (PG sharding — NEW repo)        ✅ SEALED (nexus-infra-citus v0.1.0; ADR-0042; smoke 69/69)
+  8. 0.Q.1        nexus-infra-platform-tools (Marquez/OpenLineage)    ✅ SEALED (v0.1.0; ADR-0043) — Fleet → 143 VMs
         ↓
-  nexus-cli   — 🏁 v0.8.12 100% COMPLETE: full-fleet IClusterAdapter coverage (13 data/sharded + 5 non-data tiers)
+  nexus-cli   — 🏁 v0.8.12 infra-100%-COMPLETE → v0.9.0 (2026-07-25): first Phase-1 verb `deploy`; full-fleet IClusterAdapter coverage (13 data/sharded + 5 non-data tiers)
               + completion backlog (scale-up/VmrunVmResizer · swarm guarded restore · kafka resize-gate · FoundationAD backup/FSMO)
               + infra-hardening 4/4 (0.N.1 MongoShardedAdapter wire-mTLS cert-rotate · 0.O.1 VitessAdapter engine-native backup · CA rollover) — all 13 GAPs closed
         ↓
-  0.J nexus-shared → 0.K portfolio → app projects 1–14
+  0.J nexus-shared → 0.K portfolio → app projects (dataflow-studio v0.1.0 SHIPPED 2026-07-25)
 ```
 
 Deferred into 0.L: the **StarRocks CN / shared-data** (storage-compute-separation) tier — it needs object storage (MinIO), so it lands once 0.L MinIO is up. Build MinIO first in 0.L (Iceberg, Spark, and the StarRocks CN tier all depend on it).
@@ -99,7 +100,8 @@ See [`CHANGELOG.md`](./CHANGELOG.md) for canon history and [`MASTER-PLAN.md`](./
 - [`grezap/nexus-infra-registry`](https://github.com/grezap/nexus-infra-registry) — registry tier (`09-platform`, 4 VMs + VIP) — **0.L.4 HA Harbor SEALED 2026-05-25** (cold-rebuild-proven; ADR-0036): 2 stateless app nodes + dedicated PG/Redis HA datastore; MinIO S3 blobs; Trivy + cosign; Vault OIDC SSO.
 - [`grezap/nexus-infra-vitess`](https://github.com/grezap/nexus-infra-vitess) — Vitess-sharded MySQL tier (`07-vitess`, 12 VMs) — **`v0.1.0` SEALED 2026-06-03** (live-ratified + cold-rebuild-proven; `smoke-0.O.ps1` 71/71 GREEN; ADR-0041). 3 etcd topo + vtctld/VTOrc control + 2 vtgate routers (RR-DNS `vtgate.nexus.lab`, MySQL `:15306`) + 2 shards × 3 Percona Server 8.4 tablets; keyspace `commerce`, hash vindex, Vitess v24.0.1; full Vault-PKI mTLS. The **relational (MySQL) sharding** showcase (distinct from PXC/Galera *replication*, 0.G.3).
 - [`grezap/nexus-infra-citus`](https://github.com/grezap/nexus-infra-citus) — Citus-sharded PostgreSQL tier (`08-citus`, 9 VMs + 3 VRRP VIPs) — **`v0.1.0` SEALED 2026-06-03** (live-ratified + cold-rebuild-proven; `smoke-0.P.ps1` 69/69 GREEN incl worker Patroni failover; ADR-0042). 3 etcd DCS + coordinator Patroni pair + 2 worker Patroni pairs; PostgreSQL 17 + Citus 14.x; distributed (32-shard) + reference + colocated tables; every node-group a 2-node Patroni cluster fronted by a keepalived VRRP VIP that follows the leader (workers in `pg_dist_node` by VIP); full Vault-PKI mTLS. The **relational (PostgreSQL) sharding** showcase with full Patroni HA (distinct from Patroni *streaming replication*, 0.G.4).
-- [`grezap/nexus-cli`](https://github.com/grezap/nexus-cli) — operator surface; .NET 10 Native AOT, **28.34 MB** win-x64 binary (under the **≤30 MB** exit gate, ADR-0009). **`v0.8.12` tagged 2026-07-10 — 🏁 100% COMPLETE** (330 tests; all 13 GAPs closed; infra-hardening 4/4; GENUINE-NA rulings reviewed+confirmed) — the CLI now deeply manages **every cluster in the fleet**: full `IClusterAdapter` coverage of all 13 data/sharded families + all 5 non-data tiers (Vault/Foundation-AD · Swarm · Observability · Lakehouse · Registry), reached at v0.8.5, plus the **completion backlog** (v0.8.6 batch 1 + v0.8.7 batches 2-3): `cluster-status --verbose` timings, Redis/kafka acl, the `kafka` meta-cluster delegation, `scale-up`/`VmrunVmResizer` (vertical resize + safety gate), swarm guarded `backup restore --confirm-destructive`, FoundationAD `backup take` (`ntdsutil ifm`) + FSMO `failover-test`, and the **v0.8.8–v0.8.12 infra-hardening block** — **0.N.1 MongoShardedAdapter wire-mTLS cert-rotate** (online `rotateCertificates` on the per-host `mongo-sharded-server` leaves) + **0.O.1 VitessAdapter engine-native `file` BackupStorage on NFS + xtrabackup** (rewritten) + the CA rollover. The original v0.5.0 milestone (the 5 master-plan verbs — `cluster-status`/`infrastructure`/`failover-test`/`demo`/`kafka failover`) closed Phase 0.F on 2026-05-15; the 0.6.x–0.8.x line added the per-cluster `IClusterAdapter` families on top.
+- [`grezap/nexus-infra-platform-tools`](https://github.com/grezap/nexus-infra-platform-tools) — platform-tools tier (`09-platform`, 3 VMs + VIP) — **0.Q.1 Marquez (OpenLineage) `v0.1.0` SEALED 2026-07-21** (live-ratified + cold-rebuild-proven; `smoke-0.Q.1.ps1` all green; ADR-0043): `marquez` (API + web via docker-compose) + a dedicated PostgreSQL 17 HA pair (`marquez-pg-1/2`, keepalived VRRP VIP `marquez-db.nexus.lab .136`). Serves **E16** — the OpenLineage sink for `dataflow-studio`. 0.Q.2 Prefect / 0.Q.3 Unleash / 0.Q.4 Backstage are future.
+- [`grezap/nexus-cli`](https://github.com/grezap/nexus-cli) — operator surface; .NET 10 Native AOT, **28.34 MB** win-x64 binary (under the **≤30 MB** exit gate, ADR-0009). **`v0.9.0` tagged 2026-07-25** — adds the first Phase-1 verb `deploy <project>` on top of the **`v0.8.12` (2026-07-10) 🏁 infra-100%-COMPLETE** (330 tests; all 13 GAPs closed; infra-hardening 4/4; GENUINE-NA rulings reviewed+confirmed) — the CLI now deeply manages **every cluster in the fleet**: full `IClusterAdapter` coverage of all 13 data/sharded families + all 5 non-data tiers (Vault/Foundation-AD · Swarm · Observability · Lakehouse · Registry), reached at v0.8.5, plus the **completion backlog** (v0.8.6 batch 1 + v0.8.7 batches 2-3): `cluster-status --verbose` timings, Redis/kafka acl, the `kafka` meta-cluster delegation, `scale-up`/`VmrunVmResizer` (vertical resize + safety gate), swarm guarded `backup restore --confirm-destructive`, FoundationAD `backup take` (`ntdsutil ifm`) + FSMO `failover-test`, and the **v0.8.8–v0.8.12 infra-hardening block** — **0.N.1 MongoShardedAdapter wire-mTLS cert-rotate** (online `rotateCertificates` on the per-host `mongo-sharded-server` leaves) + **0.O.1 VitessAdapter engine-native `file` BackupStorage on NFS + xtrabackup** (rewritten) + the CA rollover. The original v0.5.0 milestone (the 5 master-plan verbs — `cluster-status`/`infrastructure`/`failover-test`/`demo`/`kafka failover`) closed Phase 0.F on 2026-05-15; the 0.6.x–0.8.x line added the per-cluster `IClusterAdapter` families on top.
 - Repos below are planned; links will be added as each ships:
   - `nexus-shared` · `nexus-infra-k8s`
   - 14 application projects (see MASTER-PLAN)
